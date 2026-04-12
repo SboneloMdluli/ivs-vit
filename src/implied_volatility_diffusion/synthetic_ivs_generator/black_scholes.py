@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import math
-import numpy as np
 
+import numpy as np
 from py_lets_be_rational import (
     implied_volatility_from_a_transformed_rational_guess_with_limited_iterations as imp_vol_jackel,
 )
@@ -281,7 +281,7 @@ def implied_volatility_array(
         flags=["multi_index"],
         op_flags=[["readonly"], ["readonly"], ["readonly"], ["writeonly"]],
     )
-    
+
     # compute the implied volatility for each element in the broadcasted grid
     for p, strike, tau, o in it:
         o[...] = implied_volatility(

@@ -8,10 +8,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from implied_volatility_diffusion.black_scholes import call_price, implied_volatility
-from implied_volatility_diffusion.heston_cos import _heston_cf, heston_call_cos
-from implied_volatility_diffusion.iv_surface import (
-    grid_axes,
+from implied_volatility_diffusion.iv_surface import grid_axes
+from implied_volatility_diffusion.synthetic_ivs_generator.black_scholes import (
+    call_price,
+    implied_volatility,
+)
+from implied_volatility_diffusion.synthetic_ivs_generator.heston_cos import (
+    _heston_cf,
+    heston_call_cos,
+)
+from implied_volatility_diffusion.synthetic_ivs_generator.heston_iv_surface import (
     implied_vol_surfaces_lhs,
     lhs_heston_params,
     lhs_heston_params_multi_batch,
