@@ -1,4 +1,5 @@
 """Heston model: characteristic function and European call price (COS method).
+
 Reference: "A novel pricing method for European options based on Fourier-cosine
 series expansions" (Fang & Oosterlee).
 """
@@ -6,7 +7,9 @@ series expansions" (Fang & Oosterlee).
 from __future__ import annotations
 
 import math
+
 import numpy as np
+
 
 def _heston_cf(
     u: np.ndarray,
@@ -20,7 +23,7 @@ def _heston_cf(
     rho: float,
     v0: float,
 ) -> np.ndarray:
-    """Risk-neutral Heston characteristic function"""
+    """Risk-neutral Heston characteristic function."""
     iu = 1j * u
     rmq = rate - dividend_yield
     sig2 = sigma**2
@@ -59,7 +62,7 @@ def _heston_log_moments_truncation(
     L: float,
 ) -> tuple[float, float, float]:
     """Truncation [a, b] for x = ln(S_T).
-    
+
     Cumulant formulas follow Fang & Oosterlee for ln(S_T/S_0); the first cumulant of
     ln(S_T) adds ln(S_0) because Var(ln S_T) = Var(ln(S_T/S_0)).
     Reference: https://mpra.ub.uni-muenchen.de/8914/4/MPRA_paper_8914.pdf

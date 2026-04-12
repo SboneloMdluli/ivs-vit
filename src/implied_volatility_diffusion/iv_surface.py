@@ -1,18 +1,35 @@
-"""Load config, Latin Hypercube Heston draws, and implied-volatility surfaces."""
-
 from __future__ import annotations
 
-import math
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping, Protocol, Sequence
 
 import numpy as np
 from scipy.stats import qmc
 
-from implied_volatility_diffusion.black_scholes import implied_volatility
-from implied_volatility_diffusion.heston_cos import heston_call_cos
+
+class ModelCallPricer(Protocol):
+    """Discounted European call price from absolute strike and time to maturity."""
+
+    def __call__(self, strike: float, tau: float) -> float:
+        """Return model discounted call price."""
+        ...
 
 
-PARAM_ORDER = ("v0", "rho", "sigma", "theta", "kappa", "r")
+class ImpliedVolInverter(Protocol):
+    """Map model call price to Black–Scholes implied volatility."""
+
+    def __call__(
+        self,
+        market_price: float,
+        spot: float,
+        strike: float,
+        tau: float,
+        rate: float,
+        *,
+        dividend_yield: float = 0.0,
+        **kwargs: Any,
+    ) -> float:
+        """Return Black–Scholes implied volatility."""
+        ...
 
 
 def _grid_axis(spec: Mapping[str, Any]) -> np.ndarray:
@@ -42,7 +59,7 @@ def _grid_axis(spec: Mapping[str, Any]) -> np.ndarray:
 
 
 def grid_axes(cfg: Mapping[str, Any]) -> tuple[np.ndarray, np.ndarray]:
-    """Moneyness and maturity axes from cfg['grid']."""
+    """Moneyness and maturity axes from ``cfg['grid']``."""
     grid = cfg["grid"]
     return _grid_axis(grid["moneyness"]), _grid_axis(grid["tau"])
 
@@ -52,16 +69,17 @@ def _lhs_unit_to_params(
     lows: np.ndarray,
     highs: np.ndarray,
     log_uniform_names: frozenset[str],
+    param_order: Sequence[str],
 ) -> np.ndarray:
     """Map LHS draws u in [0,1]^d to physical parameters (linear or log-uniform per dim)."""
     out = np.empty_like(u, dtype=float)
-    for i, name in enumerate(PARAM_ORDER):
+    for i, name in enumerate(param_order):
         lo, hi = float(lows[i]), float(highs[i])
         col = u[:, i]
         if name in log_uniform_names:
             if lo <= 0.0 or hi <= 0.0:
                 raise ValueError(
-                    f"log_uniform for '{name}' requires strictly positive heston_ranges bounds"
+                    f"log_uniform for '{name}' requires strictly positive range bounds"
                 )
             out[:, i] = np.exp(np.log(lo) + col * (np.log(hi) - np.log(lo)))
         else:
@@ -69,38 +87,46 @@ def _lhs_unit_to_params(
     return out
 
 
-def lhs_heston_params(
+def lhs_params_from_config(
     cfg: Mapping[str, Any],
     *,
+    param_order: Sequence[str],
+    ranges_key: str = "param_ranges",
     n_samples: int | None = None,
     seed: int | None = None,
 ) -> np.ndarray:
-    """Latin Hypercube sample of Heston parameters; shape (n, 6) in PARAM_ORDER."""
-    ranges = cfg["heston_ranges"]
+    """Latin Hypercube sample over box ranges in ``cfg[ranges_key]``.
+
+    Rows follow ``param_order``. Uses ``cfg['lhs']`` for ``n_samples``, ``seed``,
+    and optional ``log_uniform`` (parameter names mapped with log-uniform margins).
+    """
+    ranges = cfg[ranges_key]
     lhs_cfg = cfg.get("lhs", {})
     n = int(n_samples if n_samples is not None else lhs_cfg["n_samples"])
     rng_seed = int(seed if seed is not None else lhs_cfg["seed"])
 
-    lows = np.array([float(ranges[name][0]) for name in PARAM_ORDER], dtype=float)
-    highs = np.array([float(ranges[name][1]) for name in PARAM_ORDER], dtype=float)
+    lows = np.array([float(ranges[name][0]) for name in param_order], dtype=float)
+    highs = np.array([float(ranges[name][1]) for name in param_order], dtype=float)
     if np.any(highs <= lows):
-        raise ValueError("heston_ranges require upper > lower for all parameters")
+        raise ValueError(f"{ranges_key!r} requires upper > lower for all parameters")
 
     log_list = lhs_cfg.get("log_uniform") or []
     log_uniform = frozenset(str(x) for x in log_list)
-    unknown = log_uniform - frozenset(PARAM_ORDER)
+    unknown = log_uniform - frozenset(param_order)
     if unknown:
         raise ValueError(f"log_uniform contains unknown parameters: {sorted(unknown)}")
 
-    d = len(PARAM_ORDER)
+    d = len(param_order)
     sampler = qmc.LatinHypercube(d=d, seed=rng_seed)
     u = sampler.random(n=n)
-    return _lhs_unit_to_params(u, lows, highs, log_uniform)
+    return _lhs_unit_to_params(u, lows, highs, log_uniform, list(param_order))
 
 
-def lhs_heston_params_multi_batch(
+def lhs_params_multi_batch_from_config(
     cfg: Mapping[str, Any],
     *,
+    param_order: Sequence[str],
+    ranges_key: str = "param_ranges",
     n_samples: int | None = None,
     n_batches: int | None = None,
     seed: int | None = None,
@@ -117,122 +143,79 @@ def lhs_heston_params_multi_batch(
         raise ValueError("n_batches must be >= 1")
     base = int(seed if seed is not None else lhs_cfg["seed"])
     chunks = [
-        lhs_heston_params(cfg, n_samples=n_samples, seed=base + b * stride) for b in range(nb)
+        lhs_params_from_config(
+            cfg,
+            param_order=param_order,
+            ranges_key=ranges_key,
+            n_samples=n_samples,
+            seed=base + b * stride,
+        )
+        for b in range(nb)
     ]
     return np.vstack(chunks)
 
 
-def implied_vol_surface_for_params(
-    params: np.ndarray,
-    cfg: Mapping[str, Any],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Build the implied-vol grid for one Heston parameter vector.
+def implied_vol_surface_on_grid(
+    moneyness: np.ndarray,
+    tau: np.ndarray,
+    *,
+    spot: float,
+    rate: float,
+    dividend_yield: float,
+    model_call_price: ModelCallPricer,
+    to_implied_vol: ImpliedVolInverter,
+    implied_vol_options: Mapping[str, Any] | None = None,
+) -> np.ndarray:
+    """Black–Scholes implied volatility
+
+    Args:
+        moneyness: Values ``K / S`` (strike over spot).
+        tau: Year fractions; non-positive entries yield NaN in the surface.
+        spot: Spot level used to convert moneyness to strike.
+        rate: Risk-free rate passed to ``to_implied_vol``.
+        dividend_yield: Continuous yield passed through.
+        model_call_price: ``(strike, tau) ->`` model **discounted** call price in the
+            same units expected by ``to_implied_vol`` (e.g. Black–Scholes convention).
+        to_implied_vol: Typically a Black–Scholes inverter; extra options go in
+            ``implied_vol_options`` and are forwarded as keyword arguments.
+        implied_vol_options: Optional mapping (e.g. ``sigma_lo``, ``brent_xtol``).
 
     Returns:
-        m: Shape (M,), moneyness ``K/S0``.
-        tau: Shape (T,), maturities in years.
-        iv: Shape (M, T), Black–Scholes implied volatility.
+        Array of shape ``(len(moneyness), len(tau))``.
     """
-    market = cfg["market"]
-    spot = float(market["spot"])
-    q = float(market.get("dividend_yield", 0.0))
-    m, tau = grid_axes(cfg)
-
-    cos_cfg = cfg.get("cos", {})
-    n_terms_base = int(cos_cfg.get("n_terms", 1024))
-    L = float(cos_cfg.get("truncation_L", 14.0))
-    tau_ref = float(cos_cfg.get("short_tau_tau_ref", 0.25))
-    n_terms_max = int(cos_cfg.get("n_terms_max", 4096))
-
-    iv_cfg = cfg.get("implied_vol", {})
-    sigma_lo = float(iv_cfg.get("sigma_lo", 1e-4))
-    sigma_hi = float(iv_cfg.get("sigma_hi", 5.0))
-    xtol = float(iv_cfg.get("brent_xtol", 1e-8))
-    newton_refinement_steps = int(
-        iv_cfg.get("newton_refinement_steps", iv_cfg.get("newton_max_iter", 3))
-    )
-    newton_tol = float(iv_cfg.get("newton_tol", 1e-10))
-    jackel_iterations = int(iv_cfg.get("jackel_iterations", 0))
-    vega_floor_scale = float(iv_cfg.get("vega_floor_scale", 1e-14))
-
-    v0, rho, sigma_h, theta, kappa, r = (float(x) for x in params)
-
-    iv = np.empty((m.size, tau.size), dtype=float)
+    iv_kw = dict(implied_vol_options or {})
+    m = np.asarray(moneyness, dtype=float)
+    t = np.asarray(tau, dtype=float)
+    out = np.empty((m.size, t.size), dtype=float)
     for i, mi in enumerate(m):
         strike = float(mi * spot)
-        for j, tj in enumerate(tau):
+        for j, tj in enumerate(t):
             if tj <= 0:
-                iv[i, j] = np.nan
+                out[i, j] = np.nan
                 continue
             tjf = float(tj)
-            scale = max(1.0, math.sqrt(tau_ref / max(tjf, 1e-12)))
-            n_terms = int(min(n_terms_max, round(n_terms_base * scale)))
-            price = heston_call_cos(
-                spot,
-                strike,
-                tjf,
-                r,
-                kappa,
-                theta,
-                sigma_h,
-                rho,
-                v0,
-                dividend_yield=q,
-                n_terms=n_terms,
-                truncation_L=L,
-            )
-            iv[i, j] = implied_volatility(
+            price = model_call_price(strike, tjf)
+            out[i, j] = to_implied_vol(
                 float(price),
                 spot,
                 strike,
                 tjf,
-                r,
-                dividend_yield=q,
-                sigma_lo=sigma_lo,
-                sigma_hi=sigma_hi,
-                xtol=xtol,
-                newton_refinement_steps=newton_refinement_steps,
-                newton_tol=newton_tol,
-                jackel_iterations=jackel_iterations,
-                vega_floor_scale=vega_floor_scale,
+                rate,
+                dividend_yield=dividend_yield,
+                **iv_kw,
             )
-    return m, tau, iv
+    return out
 
 
-def implied_vol_surfaces_lhs(
+def implied_vol_surfaces_from_param_matrix(
+    params: np.ndarray,
     cfg: Mapping[str, Any],
     *,
-    n_samples: int | None = None,
-    n_batches: int | None = None,
-    seed: int | None = None,
-    seed_stride: int | None = None,
+    build_surface: Callable[[np.ndarray, Mapping[str, Any]], np.ndarray],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Latin-hypercube Heston draws and one implied-vol surface per draw.
-
-    If ``lhs.n_batches`` > 1 (or ``n_batches`` is passed), uses independent Latin
-    hypercubes with different seeds for more diverse parameter sets.
-
-    Returns:
-        params: Shape (N, 6), rows follow ``PARAM_ORDER``.
-        m: Shape (M,), moneyness grid.
-        tau: Shape (T,), maturity grid.
-        iv: Shape (N, M, T), implied volatility.
-    """
-    lhs_cfg = cfg.get("lhs", {})
-    nb = int(n_batches if n_batches is not None else lhs_cfg.get("n_batches", 1))
-    if nb <= 1:
-        params = lhs_heston_params(cfg, n_samples=n_samples, seed=seed)
-    else:
-        params = lhs_heston_params_multi_batch(
-            cfg,
-            n_samples=n_samples,
-            n_batches=nb,
-            seed=seed,
-            seed_stride=seed_stride,
-        )
+ 
     m, tau = grid_axes(cfg)
     iv = np.empty((params.shape[0], m.size, tau.size), dtype=float)
     for n, row in enumerate(params):
-        _, _, surf = implied_vol_surface_for_params(row, cfg)
-        iv[n, :, :] = surf
+        iv[n, :, :] = build_surface(row, cfg)
     return params, m, tau, iv
