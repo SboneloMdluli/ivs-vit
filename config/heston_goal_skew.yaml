@@ -1,0 +1,16 @@
+# skew
+heston_ranges:
+  rho: [-0.99, -0.35]
+  sigma: [0.45, 1]
+
+grid:
+  moneyness:
+    start_point: 0.4
+    step: 0.1
+    end_point: 1.6
+
+implied_vol:
+  m_extrapolate_below: 0.52
+
+plot_surface:
+  zlim: [0.0, 1.0]
