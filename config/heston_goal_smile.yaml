@@ -1,0 +1,13 @@
+# smile
+heston_ranges:
+  rho: [-0.42, 0.42]
+  sigma: [0.6, 1]
+
+grid:
+  moneyness:
+    start_point: 0.35
+    step: 0.1
+    end_point: 1.65
+
+plot_surface:
+  zlim: [0.0, 1.0]

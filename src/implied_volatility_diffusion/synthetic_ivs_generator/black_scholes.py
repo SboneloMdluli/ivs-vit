@@ -157,7 +157,7 @@ def implied_volatility(
     rate: float,
     dividend_yield: float = 0.0,
     sigma_lo: float = 1e-4,
-    sigma_hi: float = 5.0,
+    sigma_hi: float = 1.0,
     xtol: float = 1e-8,
     *,
     newton_refinement_steps: int = 3,
@@ -220,6 +220,7 @@ def implied_volatility(
         market_price,
         jackel_iterations=jackel_iterations,
     )
+    #failsafe for when Jäckel is unavailable
     if sigma0 is None or not math.isfinite(sigma0):
         sigma0 = _brenner_subrahmanyam_guess(
             spot, strike, tau, rate, dividend_yield, intrinsic, market_price, tol_price
@@ -228,6 +229,7 @@ def implied_volatility(
 
     min_vega = max(vega_floor_scale * spot, 1e-16)
 
+    #Newton run
     for _ in range(max(0, newton_refinement_steps)):
         diff = call_price(spot, strike, tau, rate, sigma, dividend_yield) - market_price
         if abs(diff) < newton_tol:
@@ -243,6 +245,7 @@ def implied_volatility(
         if abs(step) < 1e-15:
             return float(sigma)
 
+    
     diff = call_price(spot, strike, tau, rate, sigma, dividend_yield) - market_price
     if abs(diff) < max(newton_tol * 50.0, tol_price):
         return float(sigma)
@@ -268,7 +271,7 @@ def implied_volatility_array(
     rate: float,
     dividend_yield: float = 0.0,
     sigma_lo: float = 1e-4,
-    sigma_hi: float = 5.0,
+    sigma_hi: float = 1.0,
     xtol: float = 1e-8,
 ) -> np.ndarray:
     """Element-wise implied vol for broadcastable (strikes, taus) grids."""

@@ -1,0 +1,12 @@
+# Overlay: high varianc
+
+heston_ranges:
+  v0: [0.08, 0.45]
+  theta: [0.08, 0.45]
+  sigma: [0.45, 1.25]
+
+heston_cos_pricer:
+  n_terms_max: 6144
+
+plot_surface:
+  zlim: [0.0, 1.0]

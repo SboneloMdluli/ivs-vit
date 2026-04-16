@@ -1,12 +1,15 @@
+# Optional scenario overlays: heston_goal_*.yaml (see implied_volatility_diffusion.synthetic_ivs_generator.heston_iv_goals).
+
 market:
   spot: 100.0
   dividend_yield: 0.0
 
-# Heston parameter ranges
+# Heston parameter ranges (LHS). Kept moderate so COS prices stay within BS inversion
+# when ``implied_vol.sigma_hi`` is 1 (100% vol cap).
 heston_ranges:
   v0: [0.02, 0.35]
-  rho: [-0.95, 0.95]
-  sigma: [0.08, 1.2]
+  rho: [-0.95, -0.08]
+  sigma: [0.12, 1.25]
   theta: [0.01, 0.35]
   kappa: [0.5, 8.0]
   r: [0.0, 0.08]
@@ -27,7 +30,12 @@ lhs:
 # Black–Scholes inversion (Jäckel + Newton + Brent)
 implied_vol:
   sigma_lo: 1.0e-4
-  sigma_hi: 5.0
+  sigma_hi: 1.0
+  # Very short tau (e.g. prepended 0.05y) + deep ITM: time value is tiny so BS inversion
+  # from COS prices can spike; copy IV from the first column with tau >= threshold.
+  tau_extrapolate_below: 0.15
+  # Optional: rows with m below this use the first row with m >= threshold (skew grids).
+  m_extrapolate_below: 0.0
   brent_xtol: 1.0e-8
   newton_refinement_steps: 3
   newton_tol: 1.0e-10
@@ -40,3 +48,9 @@ heston_cos_pricer:
   truncation_L: 14.0
   short_tau_tau_ref: 0.25
   n_terms_max: 4096
+
+# Sequences of IV surfaces along a risk-neutral Heston path (Euler spot + variance)
+sequential_ivs:
+  n_steps: 8
+  dt: 0.003968253968253968 # 1/252
+  path_seed_stride: 100000

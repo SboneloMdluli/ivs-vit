@@ -8,10 +8,8 @@ version = "0.1.0"
 description = "Implied volatility forecasting with DiT"
 requires-python = ">=3.10"
 keywords = [
-  "diffusion",
-  "finance",
   "implied-volatility",
-  "machine-learning",
+  "deep-learning",
   "options",
 ]
 
@@ -38,6 +36,7 @@ dev = [
 notebooks = [
   "ipykernel>=6.29",
   "jupyterlab>=4.0",
+  "seaborn>=0.13",
 ]
 
 [tool.uv]
