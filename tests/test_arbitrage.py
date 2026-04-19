@@ -42,7 +42,7 @@ def test_calendar_violation_detected_when_total_variance_decreases() -> None:
     iv[:, 1] = 0.20
     iv[:, 2] = 0.20
     rep = check_iv_surface_arbitrage(iv, m, tau, spot=100.0, rate=0.0)
-    w = (iv ** 2) * tau[None, :]
+    w = (iv**2) * tau[None, :]
     assert np.any(np.diff(w, axis=1) < 0.0)
     assert not rep.calendar_ok
     assert rep.worst_calendar < 0.0

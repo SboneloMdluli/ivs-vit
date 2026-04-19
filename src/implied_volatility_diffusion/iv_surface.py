@@ -130,10 +130,7 @@ def lhs_params_multi_batch_from_config(
     seed: int | None = None,
     seed_stride: int | None = None,
 ) -> np.ndarray:
-    """Stack several independent LHS designs with different RNG seeds.
-
-    Total draws = n_batches * n_samples (each batch fills the hypercube anew).
-    """
+    """Stack several independent LHS designs with different RNG seeds."""
     lhs_cfg = cfg.get("lhs", {})
     nb = int(n_batches if n_batches is not None else lhs_cfg.get("n_batches", 1))
     stride = int(seed_stride if seed_stride is not None else lhs_cfg.get("seed_stride", 10_000))

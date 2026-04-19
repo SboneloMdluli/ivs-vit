@@ -121,9 +121,7 @@ def check_iv_surface_arbitrage(
     m = np.asarray(moneyness, dtype=float).ravel()
     t = np.asarray(tau, dtype=float).ravel()
     if iv.shape != (m.size, t.size):
-        raise ValueError(
-            f"iv shape {iv.shape} does not match (len(moneyness)={m.size}, len(tau)={t.size})"
-        )
+        raise ValueError(f"iv shape {iv.shape} does not match (len(moneyness)={m.size}, len(tau)={t.size})")
     if np.any(np.diff(m) <= 0.0):
         raise ValueError("moneyness must be strictly increasing")
     if np.any(np.diff(t) <= 0.0):
@@ -132,8 +130,9 @@ def check_iv_surface_arbitrage(
     c = _bs_call_grid(iv, m, t, spot=spot, rate=rate, dividend_yield=dividend_yield)
     k = m * float(spot)
     upper = float(spot) * np.exp(-float(dividend_yield) * t)
-    lower = np.maximum(float(spot) * np.exp(-float(dividend_yield) * t)[None, :]
-                       - k[:, None] * np.exp(-float(rate) * t)[None, :], 0.0)
+    lower = np.maximum(
+        float(spot) * np.exp(-float(dividend_yield) * t)[None, :] - k[:, None] * np.exp(-float(rate) * t)[None, :], 0.0
+    )
     finite = np.isfinite(c)
 
     upper_slack = upper[None, :] - c
@@ -157,11 +156,7 @@ def check_iv_surface_arbitrage(
         dk_l = (k[1:-1] - k[:-2])[:, None]
         dk_r = (k[2:] - k[1:-1])[:, None]
         denom = dk_l * dk_r * (dk_l + dk_r) / 2.0
-        d2 = (
-            dk_l * c[2:, :]
-            - (dk_l + dk_r) * c[1:-1, :]
-            + dk_r * c[:-2, :]
-        ) / denom
+        d2 = (dk_l * c[2:, :] - (dk_l + dk_r) * c[1:-1, :] + dk_r * c[:-2, :]) / denom
         finite_d2 = np.isfinite(d2)
         worst_butterfly = float(np.min(np.where(finite_d2, d2, np.inf)))
         n_butterfly = int(np.sum(finite_d2 & (d2 < -tol)))
@@ -172,7 +167,7 @@ def check_iv_surface_arbitrage(
     butterfly_ok = (worst_butterfly >= -tol) and (worst_mono <= tol)
 
     if t.size >= 2:
-        w = (iv ** 2) * t[None, :]
+        w = (iv**2) * t[None, :]
         dw = np.diff(w, axis=1)
         finite_dw = np.isfinite(dw)
         worst_calendar = float(np.min(np.where(finite_dw, dw, np.inf)))
