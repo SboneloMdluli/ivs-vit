@@ -20,13 +20,19 @@ uv sync --group notebooks
 uv run pytest
 ```
 
+## Pre-commit
+
+```bash
+uv run pre-commit run --all-files
+```
+
 ## Configuration
 
 [`config/heston_iv_surface.yaml`](config/heston_iv_surface.yaml) Market, Heston parameter box, Latin Hypercube, Black-Scholes implied-vol inversion, and Heston-COS pricer settings.
 [`config/sabr_iv_surface.yaml`](config/sabr_iv_surface.yaml) Market assumptions, SABR parameter box, Latin Hypercube settings, and shared moneyness and maturity grid.
 [`config/iv_surface_grid.yaml`](config/iv_surface_grid.yaml) Shared grid and plot surface settings.
 
-## Heston-COS synthetic implied-volatility generator  
+## Heston-COS synthetic implied-volatility generator
 ## Option Data Pipeline
 
 ### Objective:
@@ -46,7 +52,7 @@ Preprocessed datasets (raw + cleaned) are available here:
 https://drive.google.com/drive/folders/1RyOj4Ylcqgo5ItAcTGJWsiuKayZ-qvYI?usp=drive_link
 
 ### Pipeline Overview:
-1. **Data Ingestion**: 
+1. **Data Ingestion**:
 - Load raw TXT files into pandas DataFrames
 - Clean column names and normalize schema
 - Parse date fields
@@ -61,7 +67,7 @@ https://drive.google.com/drive/folders/1RyOj4Ylcqgo5ItAcTGJWsiuKayZ-qvYI?usp=dri
 - smoothing weights: liquidity weight; vega weight; combined weight.
 
 4. **Data Cleaning**: Apply filters to keep positive bid/ask; valid IV; positive time to maturity; ask >= bid; reaonable spread (to be refined in future work)
-5. **Output**: 
+5. **Output**:
 - Combined raw dataset (9.3 million rows): `data/raw/raw.parquet`. with minimal processing.
 - Cleaned dataset (15.4 million rows): `data/processed/cleaned.parquet`. initially cleaned data and engineered features for modeling.
 
@@ -96,7 +102,3 @@ https://drive.google.com/drive/folders/1RyOj4Ylcqgo5ItAcTGJWsiuKayZ-qvYI?usp=dri
 ## Generic surface engine
 
 `src/implied_volatility_diffusion/iv_surface.py` is model-agnostic: it builds grid axes from config, samples parameter vectors with Latin Hypercube sampling, and assembles batches of surfaces. Both SABR and Heston reuse this shared grid and sampling pattern.
-
-
-
-

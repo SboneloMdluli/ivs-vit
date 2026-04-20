@@ -94,9 +94,7 @@ def sabr_hagan_lognormal_iv_array(
         op_flags=[["readonly"], ["readonly"], ["readonly"], ["writeonly"]],
     )
     for fv, kv, tv, ov in it:
-        ov[...] = sabr_hagan_lognormal_iv(
-            float(fv), float(kv), float(tv), alpha, beta, rho, nu
-        )
+        ov[...] = sabr_hagan_lognormal_iv(float(fv), float(kv), float(tv), alpha, beta, rho, nu)
     return out
 
 
@@ -132,12 +130,7 @@ def calibrate_sabr_to_implied_vols(
         raise ValueError("strikes and market_ivs must have the same shape")
     if tau <= 0.0 or forward <= 0.0:
         raise ValueError("forward and tau must be positive for calibration")
-    valid = (
-        np.isfinite(strikes_arr)
-        & np.isfinite(market_iv_arr)
-        & (strikes_arr > 0.0)
-        & (market_iv_arr > iv_floor)
-    )
+    valid = np.isfinite(strikes_arr) & np.isfinite(market_iv_arr) & (strikes_arr > 0.0) & (market_iv_arr > iv_floor)
     fit_strikes = strikes_arr[valid]
     fit_ivs = market_iv_arr[valid]
     if fit_strikes.size < 3:
