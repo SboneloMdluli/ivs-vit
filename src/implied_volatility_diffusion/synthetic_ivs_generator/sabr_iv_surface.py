@@ -145,17 +145,11 @@ def calibrate_params_for_expiries(
         a list of SciPy ``OptimizeResult`` diagnostics.
     """
     taus = np.asarray(expiry_taus, dtype=float).ravel()
-    if not (
-        len(strikes_per_expiry) == len(ivs_per_expiry) == int(taus.size)
-    ):
-        raise ValueError(
-            "expiry_taus, strikes_per_expiry, and ivs_per_expiry lengths must match"
-        )
+    if not (len(strikes_per_expiry) == len(ivs_per_expiry) == int(taus.size)):
+        raise ValueError("expiry_taus, strikes_per_expiry, and ivs_per_expiry lengths must match")
     rows: list[list[float]] = []
     details: list[Any] = []
-    for tau, expiry_strikes, expiry_ivs in zip(
-        taus, strikes_per_expiry, ivs_per_expiry, strict=True
-    ):
+    for tau, expiry_strikes, expiry_ivs in zip(taus, strikes_per_expiry, ivs_per_expiry, strict=True):
         fwd = forward_from_spot(spot, float(tau), r, q)
         alpha, rho, nu, res = calibrate_sabr_to_implied_vols(
             fwd,
@@ -202,9 +196,7 @@ def implied_vol_surface_from_calibrated_slices(
         fwd = forward_from_spot(spot, float(tj), r, q)
         strikes = m * spot
         for i, k in enumerate(strikes):
-            out[i, j] = sabr_hagan_lognormal_iv(
-                fwd, float(k), float(tj), alpha, beta, rho, nu
-            )
+            out[i, j] = sabr_hagan_lognormal_iv(fwd, float(k), float(tj), alpha, beta, rho, nu)
     return out
 
 
