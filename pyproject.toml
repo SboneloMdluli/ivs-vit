@@ -25,6 +25,7 @@ dependencies = [
   "py-vollib>=1.0.1",
   "py-lets-be-rational>=1.0.1",
   "pyarrow>=23.0.1",
+  "QuantLib>=1.36",
 ]
 
 [dependency-groups]
