@@ -40,3 +40,10 @@ lightning_logs/
 *.ckpt
 *.pkl
 *.joblib
+
+# Local data artifacts
+*.parquet
+data/**
+.data/**
+!data/.gitkeep
+!.data/.gitkeep
