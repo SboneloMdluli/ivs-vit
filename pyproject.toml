@@ -21,12 +21,9 @@ dependencies = [
   "matplotlib>=3.7",
   "pyyaml>=6.0",
   "py-vollib>=1.0.1",
-  # PyPI 1.0.1 imports CPython-only `_testcapi` for DBL_MIN/DBL_MAX, which is absent from
-  # uv's managed CPython builds. Upstream replaced this with `sys.float_info` but has not
-  # tagged a release; pin to a known-good commit.
-  "py-lets-be-rational @ git+https://github.com/vollib/py_lets_be_rational.git@b85a0d87fe2ba6d0525c76ee936999599deb39d7",
   "pyarrow>=23.0.1",
   "QuantLib>=1.36",
+  "py-lets-be-rational>=1.0.1",
 ]
 
 [dependency-groups]
