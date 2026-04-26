@@ -1,3 +1,5 @@
+__version__ = "0.1.0"
+
 from implied_volatility_diffusion.arbitrage import (
     ArbitrageReport,
     check_iv_surface_arbitrage,
@@ -30,6 +32,7 @@ from implied_volatility_diffusion.models.heston.simulation import (
     is_feller_satisfied,
     milstein_step,
 )
+from implied_volatility_diffusion.noise_scheduler import VPNoiseScheduler
 from implied_volatility_diffusion.synthetic.goals import (
     HESTON_GOAL_YAML,
     HestonIvGoal,
@@ -68,8 +71,6 @@ from implied_volatility_diffusion.synthetic.sabr import (
     lhs_sabr_params_multi_batch,
 )
 
-__version__ = "0.1.0"
-
 __all__ = [
     "__version__",
     "ArbitrageError",
@@ -89,6 +90,7 @@ __all__ = [
     "HESTON_PARAM_ORDER",
     "HestonIvGoal",
     "IV_SURFACE_GRID_YAML",
+    "VPNoiseScheduler",
     "assert_arbitrage_free",
     "check_iv_surface_arbitrage",
     "check_iv_surfaces_arbitrage",
