@@ -1,7 +1,5 @@
 """Tests for SABR Hagan IV, calibration, and surface builders."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import numpy as np
@@ -9,15 +7,17 @@ import pytest
 import yaml
 
 from implied_volatility_diffusion.iv_surface import grid_axes
-from implied_volatility_diffusion.synthetic_ivs_generator.sabr import (
-    calibrate_sabr_to_implied_vols,
-    sabr_lognormal_iv,
-)
-from implied_volatility_diffusion.synthetic_ivs_generator.sabr_iv_surface import (
+from implied_volatility_diffusion.models.sabr.calibration import (
     calibrate_params_for_expiries,
-    implied_vol_surface_for_params,
+    calibrate_sabr_to_implied_vols,
     implied_vol_surface_from_calibrated_slices,
-    implied_vol_surfaces_lhs,
+)
+from implied_volatility_diffusion.models.sabr.hagan import sabr_hagan_lognormal_iv as sabr_lognormal_iv
+from implied_volatility_diffusion.synthetic.sabr import (
+    implied_vol_surface_for_sabr_params as implied_vol_surface_for_params,
+)
+from implied_volatility_diffusion.synthetic.sabr import implied_vol_surfaces_sabr_lhs as implied_vol_surfaces_lhs
+from implied_volatility_diffusion.synthetic.sabr import (
     lhs_sabr_params,
 )
 

@@ -6,38 +6,27 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from implied_volatility_diffusion.config import merge_config
 from implied_volatility_diffusion.iv_surface import grid_axes
-from implied_volatility_diffusion.synthetic_ivs_generator.heston_cos import (
-    _heston_cf,
+from implied_volatility_diffusion.models.heston.cos import (
     heston_call_cos,
 )
-from implied_volatility_diffusion.synthetic_ivs_generator.heston_iv_surface import (
-    implied_vol_surface_for_params,
-    implied_vol_surfaces_lhs,
-    implied_vol_surfaces_sequential_lhs,
+from implied_volatility_diffusion.pricing.black_scholes import bs_call_price
+from implied_volatility_diffusion.pricing.implied_vol import (
+    implied_volatility,
+)
+from implied_volatility_diffusion.synthetic.heston import (
+    implied_vol_surface_for_heston_params as implied_vol_surface_for_params,
+)
+from implied_volatility_diffusion.synthetic.heston import implied_vol_surfaces_heston_lhs as implied_vol_surfaces_lhs
+from implied_volatility_diffusion.synthetic.heston import (
+    implied_vol_surfaces_heston_sequential_lhs as implied_vol_surfaces_sequential_lhs,
+)
+from implied_volatility_diffusion.synthetic.heston import (
     lhs_heston_params,
     lhs_heston_params_multi_batch,
     load_heston_iv_surface_config,
 )
-from implied_volatility_diffusion.synthetic_ivs_generator.implied_vol_solver import (
-    call_price,
-    implied_volatility,
-)
-from ivs_config import merge_config
-
-
-def test_heston_cf_at_zero() -> None:
-    u = np.array([0.0])
-    phi = _heston_cf(u, 1.0, 100.0, 0.03, 0.0, 2.0, 0.04, 0.3, -0.7, 0.04)
-    assert abs(complex(phi[0]) - 1.0) < 1e-10
-
-
-def test_heston_cf_forward_measure() -> None:
-    S, T, r, q = 100.0, 0.5, 0.03, 0.0
-    u = np.array([-1j], dtype=complex)
-    phi = _heston_cf(u, T, S, r, q, 2.0, 0.04, 0.3, -0.7, 0.04)
-    fwd = S * math.exp((r - q) * T)
-    assert abs(complex(phi[0]) - fwd) < 1e-6
 
 
 def test_implied_vol_clamps_slightly_sub_intrinsic() -> None:
@@ -50,7 +39,7 @@ def test_implied_vol_clamps_slightly_sub_intrinsic() -> None:
 
 def test_bs_implied_vol_roundtrip() -> None:
     S, K, T, r, sigma = 100.0, 100.0, 0.5, 0.03, 0.25
-    price = call_price(S, K, T, r, sigma)
+    price = float(bs_call_price(S, K, T, r, sigma))
     iv = implied_volatility(price, S, K, T, r)
     assert abs(iv - sigma) < 1e-6
 

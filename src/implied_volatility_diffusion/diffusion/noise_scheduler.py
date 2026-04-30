@@ -1,5 +1,7 @@
 """Variance-preserving (VP) forward diffusion scheduler."""
 
+ 
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,6 +13,8 @@ class VPNoiseScheduler(nn.Module):
     Supports:
     - discrete noising with ``q_sample`` for model training
     - standalone forward noising from continuous time ``t`` via ``add_noise``
+    - convenience accessors (:meth:`extract`, :meth:`alpha_bar_at`) used by the
+      reverse-process sampler and arbitrage-weighted loss
     """
 
     def __init__(
@@ -28,9 +32,17 @@ class VPNoiseScheduler(nn.Module):
         self.beta = float(beta) if beta is not None else None
 
         betas = self._build_betas(beta_schedule, self.timesteps, beta_start, beta_end, cosine_s)
+        alphas = 1.0 - betas
+        alpha_bar = torch.cumprod(alphas, dim=0)
+        alpha_bar_prev = torch.cat([torch.ones(1, dtype=alpha_bar.dtype), alpha_bar[:-1]])
+        # Posterior variance for DDPM ancestral sampler (Ho et al. 2020 eq. 7).
+        posterior_var = betas * (1.0 - alpha_bar_prev) / torch.clamp(1.0 - alpha_bar, min=1e-20)
+
         self.register_buffer("betas", betas)
-        self.register_buffer("alphas", 1.0 - betas)
-        self.register_buffer("alpha_bar", torch.cumprod(self.alphas, dim=0))
+        self.register_buffer("alphas", alphas)
+        self.register_buffer("alpha_bar", alpha_bar)
+        self.register_buffer("alpha_bar_prev", alpha_bar_prev)
+        self.register_buffer("posterior_variance", posterior_var)
 
     @staticmethod
     def _build_betas(
@@ -73,7 +85,7 @@ class VPNoiseScheduler(nn.Module):
         generator: torch.Generator | None = None,
         noise: np.ndarray | torch.Tensor | None = None,
     ) -> np.ndarray | torch.Tensor:
-        """Standalone closed-form noising with a NumPy-like API.
+        """Standalone closed-form noising with a NumPy-or-Torch API.
 
         - NumPy input -> NumPy output
         - Torch input -> Torch output
@@ -99,7 +111,12 @@ class VPNoiseScheduler(nn.Module):
                 raise ValueError(f"noise shape {eps_np.shape} != x0 shape {x0_np.shape}")
         return float(alpha.item()) * x0_np + float(sigma.item()) * eps_np
 
-    def q_sample(self, x0: torch.Tensor, t: torch.Tensor | int, noise: torch.Tensor | None = None) -> torch.Tensor:
+    def q_sample(
+        self,
+        x0: torch.Tensor,
+        t: torch.Tensor | int,
+        noise: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Discrete forward process: ``x_t = sqrt(alpha_bar_t) x0 + sqrt(1-alpha_bar_t) eps``."""
         if noise is None:
             noise = torch.randn_like(x0)
@@ -138,6 +155,17 @@ class VPNoiseScheduler(nn.Module):
                 outputs.append(self.add_noise(x0, float(t.item()), generator=generator))
             return torch.stack(outputs, dim=0)
         raise ValueError(f"Unknown mode: {mode}. Expected 'discrete' or 'continuous'.")
+
+    def extract(self, buffer_name: str, t: torch.Tensor, x_shape: tuple[int, ...]) -> torch.Tensor:
+        """Index a registered buffer by ``t`` and reshape to broadcast against ``x_shape``."""
+        buf = getattr(self, buffer_name)
+        out = buf.gather(0, t.to(dtype=torch.long, device=buf.device))
+        return out.view(t.shape[0], *([1] * (len(x_shape) - 1)))
+
+    def alpha_bar_at(self, t: torch.Tensor) -> torch.Tensor:
+        """Return ``alpha_bar_t`` for a (B,)-shaped integer index tensor."""
+        idx = t.to(dtype=torch.long, device=self.alpha_bar.device)
+        return self.alpha_bar.gather(0, idx)
 
     def forward(
         self,

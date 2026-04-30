@@ -1,5 +1,7 @@
 """Heston COS pricer wrappers without torch utility dependencies."""
 
+ 
+
 import numpy as np
 
 from implied_volatility_diffusion.models.heston.heston_cos import heston_call_cos as _heston_call_cos_numpy
@@ -24,18 +26,18 @@ def heston_call_cos_batch(
     return np.array(
         [
             _heston_call_cos_numpy(
-                float(spot),
-                float(kv),
-                float(tau),
-                float(rate),
-                float(kappa),
-                float(theta),
-                float(sigma),
-                float(rho),
-                float(v0),
-                dividend_yield=float(dividend_yield),
-                n_terms=int(n_terms),
-                truncation_l=float(truncation_l),
+                    spot=spot,
+                    strike=float(kv),
+                    tau=tau,
+                    rate=rate,
+                    kappa=kappa,
+                    theta=theta,
+                    sigma=sigma,
+                    rho=rho,
+                    v0=v0,
+                    dividend_yield=dividend_yield,
+                    n_terms=int(n_terms),
+                    truncation_l=float(truncation_l),
             )
             for kv in k_arr
         ],

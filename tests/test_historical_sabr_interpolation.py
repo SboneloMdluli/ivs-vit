@@ -1,7 +1,5 @@
 """Tests for historic SABR surface build (kernel-comparable grid)."""
 
-from __future__ import annotations
-
 import numpy as np
 import pandas as pd
 
@@ -13,10 +11,8 @@ from implied_volatility_diffusion.data.historical_sabr_interpolation import (
     compare_kernel_sabr_surfaces,
     rmse_masked,
 )
-from implied_volatility_diffusion.synthetic_ivs_generator.sabr import sabr_lognormal_iv
-from implied_volatility_diffusion.synthetic_ivs_generator.sabr_iv_surface import (
-    forward_from_spot,
-)
+from implied_volatility_diffusion.models.sabr.calibration import forward_from_spot
+from implied_volatility_diffusion.models.sabr.hagan import sabr_hagan_lognormal_iv as sabr_lognormal_iv
 
 
 def _synthetic_day_two_expiries() -> pd.DataFrame:
