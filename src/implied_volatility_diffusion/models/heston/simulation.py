@@ -1,7 +1,5 @@
 """Full-truncation Milstein step for the Heston SDE."""
 
-from __future__ import annotations
-
 import math
 
 import numpy as np
