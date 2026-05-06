@@ -33,10 +33,11 @@ def _arbitrage_weights(scheduler: VPNoiseScheduler, t: torch.Tensor, schedule: A
         snr = alpha_bar / torch.clamp(1.0 - alpha_bar, min=1e-8)
         return torch.clamp(snr, max=1.0)
     if schedule == "linear":
-        t_max = max(scheduler.timesteps - 1, 1)
-        return torch.clamp(1.0 - t.float() / t_max, min=0.0)
+        T_max = max(scheduler.timesteps - 1, 1)
+        return torch.clamp(1.0 - t.float() / T_max, min=0.0)
     if schedule == "constant":
         return torch.ones_like(alpha_bar)
+    raise ValueError(f"unknown arbitrage schedule: {schedule}")
 
 
 @dataclass
@@ -44,16 +45,14 @@ class DiffusionLossConfig:
     """Knobs for :class:`DiffusionLoss`."""
 
     arbitrage_lambda: float = 0.1
-    # reference : https://arxiv.org/html/2511.07571v1
-    # uses snr
-    arbitrage_schedule: ArbitrageSchedule = "snr"
+    arbitrage_schedule: ArbitrageSchedule = "alpha_bar"
     component_names: tuple[str, ...] = field(default_factory=lambda: ("calendar", "butterfly", "call"))
 
-    predicted_z0_clip: tuple[float, float] | None = (-4.0, 4.0)
+    predicted_z0_clip: tuple[float, float] = (-4.0, 4.0)
     # reference : https://arxiv.org/pdf/2303.09556.pdf
-    # Training via Min-SNR Weighting Strategy
+    # Training via Min-SNR Weighting Strategy")
     # gamma = 5 is recommended by the paper
-    min_snr_gamma: float | None = 5.0
+    min_snr_gamma: float = 5.0
 
 
 class DiffusionLoss(nn.Module):
@@ -97,18 +96,13 @@ class DiffusionLoss(nn.Module):
             t = t.expand(iv0.shape[0])
 
         z_t, z0, eps = model.add_noise(iv0, t, noise=noise)
-
-        # model predicted noise at time t conditioned using cond
         pred = model.predict_noise(z_t, t, cond)
-
         target = eps if model.prediction_type == "epsilon" else z0
         per_sample_mse = ((pred - target) ** 2).flatten(1).mean(dim=1)
-
         if self.config.min_snr_gamma is not None and self.config.min_snr_gamma > 0:
             alpha_bar = scheduler.alpha_bar_at(t)
             snr = alpha_bar / torch.clamp(1.0 - alpha_bar, min=1e-8)
             min_snr = torch.clamp(snr, max=float(self.config.min_snr_gamma))
-
             if model.prediction_type == "epsilon":
                 w_loss = min_snr / torch.clamp(snr, min=1e-8)
             else:
@@ -155,7 +149,8 @@ class DiffusionLoss(nn.Module):
         :meth:`DiffusionModel.predict_x0_z`, which would invoke the backbone a
         second time and double the per-step cost.
         """
-        if model.prediction_type == "x0":
+        if model.prediction_type != "epsilon":
+            # prediction_type is "x0" or None (defaults to x0 training target)
             return pred
         alpha_bar = model.scheduler.alpha_bar_at(t).view(t.shape[0], *([1] * (z_t.dim() - 1)))
         sqrt_ab = torch.sqrt(torch.clamp(alpha_bar, min=1e-8))
