@@ -17,6 +17,7 @@ class VPNoiseScheduler(nn.Module):
         cosine_s: float = 0.008,
         beta: float | None = None,
     ) -> None:
+        """Precompute VP schedule buffers for forward and posterior steps."""
         super().__init__()
         self.timesteps = int(timesteps)
         self.beta_schedule = beta_schedule
@@ -171,6 +172,7 @@ class VPNoiseScheduler(nn.Module):
         t: torch.Tensor | int,
         noise: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return ``(x_t, noise)`` for the discrete forward diffusion step."""
         if noise is None:
             noise = torch.randn_like(x0)
         return self.q_sample(x0, t, noise), noise

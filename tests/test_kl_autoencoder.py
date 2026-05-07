@@ -2,10 +2,10 @@
 
 import pytest
 
-torch = pytest.importorskip("torch")
+from implied_volatility_diffusion.diffusion.autoencoders.kl_autoencoder import KLAutoencoder
+from implied_volatility_diffusion.diffusion.autoencoders.latent_grid import latent_spatial_hw
 
-from implied_volatility_diffusion.diffusion.kl_autoencoder import KLAutoencoder
-from implied_volatility_diffusion.diffusion.latent_grid import latent_spatial_hw
+torch = pytest.importorskip("torch")
 
 
 def _make(double_z: bool = True) -> KLAutoencoder:

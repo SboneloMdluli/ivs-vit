@@ -1,3 +1,5 @@
+"""Structured arbitrage-check report payloads."""
+
 from dataclasses import dataclass
 
 

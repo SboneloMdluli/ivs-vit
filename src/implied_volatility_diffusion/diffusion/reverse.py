@@ -22,6 +22,7 @@ class ReverseDiffusion(nn.Module):
     """
 
     def __init__(self, model: DiffusionModel) -> None:
+        """Initialize sampler around a configured diffusion model."""
         super().__init__()
         if not isinstance(model, DiffusionModel):
             raise TypeError(
@@ -30,12 +31,13 @@ class ReverseDiffusion(nn.Module):
         self.model = model
 
     @property
-    def scheduler(self):  # noqa: D401 - simple alias
-        """Forward through to the model's scheduler."""
+    def scheduler(self):
+        """Return the model's scheduler."""
         return self.model.scheduler
 
     @property
     def grid_shape(self) -> tuple[int, int]:
+        """Expose the model grid shape used during sampling."""
         return self.model.grid_shape
 
     def _eps_and_x0_z(

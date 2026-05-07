@@ -1,3 +1,5 @@
+"""Historical IV smoothing, interpolation, and diagnostic plotting utilities."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -74,6 +76,7 @@ def interpolate_surface(
 
 
 def load_cleaned_data(path: str | Path) -> pd.DataFrame:
+    """Load cleaned option data from parquet or CSV."""
     path = Path(path)
 
     if not path.exists():
@@ -223,6 +226,7 @@ def plot_smile(
     title: str,
     num_sections: int = 5,
 ) -> None:
+    """Plot volatility smiles at selected maturities for one date."""
     j_idx = [round(i * (len(tau_grid) - 1) / (num_sections - 1)) for i in range(num_sections)]
 
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -759,9 +763,7 @@ def _surface_comparison_scales(
 
 
 def _scatter_point_sizes(day_sub: pd.DataFrame) -> np.ndarray:
-    """Scatter point size proportional to sqrt(vega) so the liquid core
-    dominates visually and deep-wing outliers are small.
-    """
+    """Return scatter sizes proportional to sqrt(vega)."""
     if "vega" in day_sub.columns:
         vega = day_sub["vega"].to_numpy(dtype=float)
         vega = np.where(np.isfinite(vega), vega, 0.0)

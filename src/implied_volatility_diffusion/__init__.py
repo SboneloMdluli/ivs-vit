@@ -90,26 +90,6 @@ from implied_volatility_diffusion.synthetic.sabr import (
     lhs_sabr_params_multi_batch,
 )
 
-_DIFFUSION_EXPORTS = [
-    "ArbitragePenalty",
-    "ArbitrageWeights",
-    "DenoisingBackbone",
-    "DiffusionLoss",
-    "DiffusionLossConfig",
-    "DiffusionModel",
-    "GridTransformer",
-    "KLAutoencoder",
-    "KLAutoencoderOutput",
-    "ReverseDiffusion",
-    "UNet",
-    "build_backbone",
-    "halving_spatial_factor",
-    "latent_padded_hw",
-    "latent_spatial_hw",
-    "pad_surface",
-    "register_backbone",
-]
-
 __all__ = [
     "__version__",
     "ArbitrageError",
@@ -138,6 +118,23 @@ __all__ = [
     "feller_index",
     "grid_axes",
     "guarded_build_surfaces",
+    "ArbitragePenalty",
+    "ArbitrageWeights",
+    "DenoisingBackbone",
+    "DiffusionLoss",
+    "DiffusionLossConfig",
+    "DiffusionModel",
+    "GridTransformer",
+    "KLAutoencoder",
+    "KLAutoencoderOutput",
+    "ReverseDiffusion",
+    "UNet",
+    "build_backbone",
+    "halving_spatial_factor",
+    "latent_padded_hw",
+    "latent_spatial_hw",
+    "pad_surface",
+    "register_backbone",
     "implied_vol_surface_for_params",
     "implied_vol_surface_for_sabr_params",
     "implied_vol_surface_on_grid",
@@ -161,5 +158,3 @@ __all__ = [
     "milstein_step",
     "repair_calendar_monotone",
 ]
-
-__all__.extend(_DIFFUSION_EXPORTS)

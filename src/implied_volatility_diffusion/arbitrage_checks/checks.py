@@ -1,3 +1,5 @@
+"""Arbitrage diagnostics for implied-volatility surfaces."""
+
 import numpy as np
 
 from implied_volatility_diffusion.arbitrage_checks.report import ArbitrageReport

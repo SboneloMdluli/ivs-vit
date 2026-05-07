@@ -1,3 +1,5 @@
+"""Data pipeline for loading, cleaning, and persisting option datasets."""
+
 from pathlib import Path
 
 import numpy as np
@@ -163,7 +165,7 @@ def clean_data(
     max_iv: float = 3.0,
     max_rel_spread: float = 2.0,
 ) -> pd.DataFrame:
-    """Clean the data by applying filters on mid price, time to maturity, implied volatility, strike price, underlying price, bid-ask spread, and relative spread."""
+    """Clean data with filters on price, tenor, IV, and spread quality."""
     df = df.copy()
 
     mask = df["mid"].notna() & (df["mid"] > 0)
@@ -213,7 +215,7 @@ def build_dataset(
     limit_files: int | None = None,
     batch_size: int = 6,
 ) -> None:
-    """Build the dataset by processing all raw option data files in the source directory and saving the raw and processed datasets to parquet files."""
+    """Build raw and processed parquet datasets from discovered source files."""
     files = discover_file(source_dir)
 
     if limit_files is not None:
@@ -274,6 +276,7 @@ def build_dataset(
 
 
 def main():
+    """Run dataset build from the YAML pipeline configuration."""
     config_path = Path("config/data_pipeline_config.yaml")
 
     with open(config_path, "r") as f:

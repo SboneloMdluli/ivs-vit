@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from implied_volatility_diffusion.diffusion.latent_grid import (
+from implied_volatility_diffusion.diffusion.autoencoders.latent_grid import (
     crop_surface,
     halving_spatial_factor,
     latent_padded_hw,

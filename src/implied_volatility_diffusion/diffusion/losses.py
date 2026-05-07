@@ -53,7 +53,7 @@ class DiffusionLossConfig:
     """Hyperparameters for :class:`DiffusionLoss`."""
 
     arbitrage_lambda: float = 0.5
-     # schedules as in Zhou et al. (arXiv:2511.07571)
+    # schedules as in Zhou et al. (arXiv:2511.07571)
     arbitrage_schedule: ArbitrageSchedule = "alpha_bar"
     component_names: tuple[str, ...] = field(default_factory=lambda: ("calendar", "butterfly", "call"))
 
@@ -75,6 +75,7 @@ class DiffusionLoss(nn.Module):
         *,
         config: DiffusionLossConfig | None = None,
     ) -> None:
+        """Initialize diffusion loss with optional arbitrage penalty module."""
         super().__init__()
         self.arbitrage_penalty = arbitrage_penalty
         self.config = config or DiffusionLossConfig()

@@ -64,6 +64,7 @@ class ArbitragePenalty(nn.Module):
         dividend_yield: float = 0.0,
         weights: ArbitrageWeights | None = None,
     ) -> None:
+        """Initialize arbitrage penalty with grid geometry and market constants."""
         super().__init__()
         k = torch.as_tensor(np.asarray(log_moneyness), dtype=torch.float32).reshape(-1)
         t = torch.as_tensor(np.asarray(tau), dtype=torch.float32).reshape(-1)
@@ -77,6 +78,7 @@ class ArbitragePenalty(nn.Module):
 
     @property
     def grid_shape(self) -> tuple[int, int]:
+        """Return ``(n_k, n_tau)`` for the configured IV grid."""
         return (int(self.log_moneyness.numel()), int(self.tau.numel()))
 
     @staticmethod

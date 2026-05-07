@@ -13,7 +13,7 @@ def halving_spatial_factor(num_downsample: int) -> int:
 
 
 def latent_padded_hw(h: int, w: int, num_downsample: int) -> tuple[int, int]:
-    """Smallest ``(H', W')`` ≥ ``(h, w)`` that are multiples of the halving factor."""
+    """Smallest ``(H', W')`` >= ``(h, w)`` that are multiples of the halving factor."""
     f = halving_spatial_factor(num_downsample)
     ph = ((int(h) + f - 1) // f) * f
     pw = ((int(w) + f - 1) // f) * f

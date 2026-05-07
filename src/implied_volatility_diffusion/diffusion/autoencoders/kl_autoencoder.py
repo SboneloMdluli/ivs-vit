@@ -1,7 +1,8 @@
 """KL-regularized autoencoder.
-Encoder: ``(B, C, H, W)`` → Gaussian latent ``z``.
-Decoder: ``z`` → ``(B, C, H, W)``.
-Loss: ``MSE + β * KL(q(z|x) ‖ N(0,I))``.
+
+Encoder: ``(B, C, H, W)`` -> Gaussian latent ``z``.
+Decoder: ``z`` -> ``(B, C, H, W)``.
+Loss: ``MSE + beta * KL(q(z|x) || N(0,I))``.
 
 Reference: Rombach et al., *High-Resolution Image Synthesis with Latent Diffusion Models*, CVPR 2022 (arXiv:2112.10752).
 """
@@ -14,14 +15,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from implied_volatility_diffusion.diffusion.latent_blocks import (
+from implied_volatility_diffusion.diffusion.autoencoders.latent_blocks import (
     DownBlock,
     UpBlock,
     crop_tensor,
     groupnorm,
     pad_tensor,
 )
-from implied_volatility_diffusion.diffusion.latent_grid import (    
+from implied_volatility_diffusion.diffusion.autoencoders.latent_grid import (
     halving_spatial_factor,
     latent_padded_hw,
     latent_spatial_hw,
@@ -29,7 +30,7 @@ from implied_volatility_diffusion.diffusion.latent_grid import (
 
 
 class _DiagonalGaussian:
-    """Diagonal Gaussian posterior q(z|x); holds μ and log σ²."""
+    """Diagonal Gaussian posterior q(z|x); holds mu and log sigma^2."""
 
     def __init__(self, mean: torch.Tensor, logvar: torch.Tensor) -> None:
         self.mean = mean
@@ -40,7 +41,7 @@ class _DiagonalGaussian:
         return self.mean + self.std * torch.randn_like(self.std)
 
     def kl_loss(self) -> torch.Tensor:
-        """Mean KL(q ‖ N(0,I)): −½(1 + log σ² − μ² − σ²)."""
+        """Mean KL(q || N(0,I)): -1/2(1 + log sigma^2 - mu^2 - sigma^2)."""
         return (-0.5 * (1.0 + self.logvar - self.mean.pow(2) - self.logvar.exp())).mean()
 
 
@@ -67,6 +68,7 @@ class KLAutoencoder(nn.Module):
         num_downsample: int = 2,
         double_z: bool = True,
     ) -> None:
+        """Initialize encoder/decoder blocks and latent projection heads."""
         super().__init__()
         _ = halving_spatial_factor(num_downsample)
         self.in_channels = int(in_channels)
@@ -89,9 +91,11 @@ class KLAutoencoder(nn.Module):
         self.dec_out = nn.Conv2d(self.base_channels, self.in_channels, kernel_size=3, padding=1)
 
     def padded_hw(self, h: int, w: int) -> tuple[int, int]:
+        """Return spatial size after symmetric padding to latent factor."""
         return latent_padded_hw(h, w, self.num_downsample)
 
     def latent_shape(self, h: int, w: int) -> tuple[int, int]:
+        """Return latent spatial shape after downsampling ``num_downsample`` times."""
         return latent_spatial_hw(h, w, self.num_downsample)
 
     def encode(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, tuple[int, int, int, int]]:
@@ -118,7 +122,7 @@ class KLAutoencoder(nn.Module):
         orig_hw: tuple[int, int],
         pads: tuple[int, int, int, int],
     ) -> torch.Tensor:
-        """Decode latent ``z`` → IV surface ``(B, in_channels, H, W)``."""
+        """Decode latent ``z`` -> IV surface ``(B, in_channels, H, W)``."""
         h = self.dec_in(z)
         for blk in self.dec_up:
             h = blk(h)
@@ -132,7 +136,7 @@ class KLAutoencoder(nn.Module):
         *,
         return_output: bool = False,
     ) -> torch.Tensor | KLAutoencoderOutput:
-        """Encode → sample z → decode. Set ``return_output=True`` for losses."""
+        """Encode -> sample z -> decode. Set ``return_output=True`` for losses."""
         orig_h, orig_w = x.shape[-2], x.shape[-1]
         f = halving_spatial_factor(self.num_downsample)
         x_pad, pads = pad_tensor(x, multiple_h=f, multiple_w=f)

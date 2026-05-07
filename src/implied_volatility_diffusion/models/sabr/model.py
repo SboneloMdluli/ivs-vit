@@ -20,6 +20,7 @@ class SabrSettings:
 
     @classmethod
     def from_config(cls, cfg: Mapping[str, Any]) -> "SabrSettings":
+        """Build SABR settings from config mapping defaults."""
         section = cfg.get("sabr", {}) or {}
         return cls(beta=float(section.get("beta", 0.5)))
 
@@ -30,10 +31,12 @@ class SabrModel:
     param_order: tuple[str, ...] = SABR_PARAM_ORDER
 
     def __init__(self, *, settings: SabrSettings | None = None) -> None:
+        """Create SABR model with optional settings overrides."""
         self.settings = settings or SabrSettings()
 
     @classmethod
     def from_config(cls, cfg: Mapping[str, Any]) -> "SabrModel":
+        """Create a configured SABR model from config sections."""
         return cls(settings=SabrSettings.from_config(cfg))
 
     @staticmethod

@@ -1,3 +1,5 @@
+"""Surface normalization helpers for implied-volatility grids."""
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +19,7 @@ def _as_3d(x):
 
 
 def iv_to_log_iv(iv, floor=DEFAULT_IV_FLOOR):
+    """Convert IV values to log-IV, clipping finite entries to ``floor``."""
     iv = np.asarray(iv, float)
     out = np.full_like(iv, np.nan)
     m = np.isfinite(iv)
@@ -25,11 +28,14 @@ def iv_to_log_iv(iv, floor=DEFAULT_IV_FLOOR):
 
 
 def log_iv_to_iv(x):
+    """Convert log-IV values back to IV values via exponentiation."""
     return np.exp(np.asarray(x, float))
 
 
 @dataclass
 class SurfaceNormalizer:
+    """Running estimator for per-grid-cell mean and std in log-IV space."""
+
     grid_shape: tuple[int, int]
     sigma_floor: float = DEFAULT_SIGMA_FLOOR
     iv_floor: float = DEFAULT_IV_FLOOR
@@ -41,11 +47,12 @@ class SurfaceNormalizer:
     fitted: bool = field(init=False, default=False)
 
     def __post_init__(self):
-        I, J = self.grid_shape
-        self.mean = np.zeros((I, J))
-        self._m2 = np.zeros((I, J))
-        self.count = np.zeros((I, J), int)
-        self.std = np.full((I, J), np.nan)
+        """Initialize running statistics arrays for the configured grid shape."""
+        grid_i, grid_j = self.grid_shape
+        self.mean = np.zeros((grid_i, grid_j))
+        self._m2 = np.zeros((grid_i, grid_j))
+        self.count = np.zeros((grid_i, grid_j), int)
+        self.std = np.full((grid_i, grid_j), np.nan)
 
     def _check(self, x):
         x = _as_3d(x)
@@ -54,6 +61,7 @@ class SurfaceNormalizer:
         return x
 
     def fit(self, iv):
+        """Fit statistics from a full batch of IV surfaces."""
         x = iv_to_log_iv(self._check(iv), self.iv_floor)
         m = np.isfinite(x)
         c = m.sum(0)
@@ -69,6 +77,7 @@ class SurfaceNormalizer:
         return self
 
     def partial_fit(self, iv):
+        """Update running statistics with one or more additional surfaces."""
         # Welford's update https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
         x = iv_to_log_iv(self._check(iv), self.iv_floor)
         m = np.isfinite(x)
@@ -101,6 +110,7 @@ class SurfaceNormalizer:
             raise RuntimeError("Not fitted")
 
     def transform(self, iv):
+        """Normalize IV surfaces into z-space using fitted statistics."""
         self._check_fitted()
         x = np.asarray(iv, float)
         squeeze = x.ndim == 2
@@ -113,6 +123,7 @@ class SurfaceNormalizer:
         return z[0] if squeeze else z
 
     def inverse_transform(self, z, return_log_iv=False):
+        """Map normalized z-space surfaces back to log-IV or IV space."""
         self._check_fitted()
         z = np.asarray(z, float)
 
@@ -126,6 +137,7 @@ class SurfaceNormalizer:
     denormalize = inverse_transform
 
     def save(self, path):
+        """Persist fitted normalization statistics to a ``.npz`` file."""
         self._check_fitted()
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -142,6 +154,7 @@ class SurfaceNormalizer:
 
     @classmethod
     def load(cls, path):
+        """Load a persisted normalizer from disk."""
         d = np.load(Path(path))
         obj = cls(tuple(d["grid_shape"]), float(d["sigma_floor"]), float(d["iv_floor"]))
         obj.mean = d["mean"]
@@ -153,6 +166,7 @@ class SurfaceNormalizer:
 
 
 def normalize_surface(iv, mean, std, iv_floor=DEFAULT_IV_FLOOR):
+    """Normalize a surface using explicit mean/std arrays."""
     iv = np.asarray(iv, float)
     if iv.shape[-2:] != mean.shape:
         raise ValueError("Shape mismatch")
@@ -160,6 +174,7 @@ def normalize_surface(iv, mean, std, iv_floor=DEFAULT_IV_FLOOR):
 
 
 def denormalize_surface(z, mean, std, return_log_iv=False):
+    """Invert normalization using explicit mean/std arrays."""
     z = np.asarray(z, float)
     if z.shape[-2:] != mean.shape:
         raise ValueError("Shape mismatch")

@@ -9,7 +9,9 @@ import numpy as np
 class ModelCallPricer(Protocol):
     """Scalar (strike, tau) -> discounted call price. Kept for legacy hooks."""
 
-    def __call__(self, strike: float, tau: float) -> float: ...
+    def __call__(self, strike: float, tau: float) -> float:
+        """Return discounted call price for a scalar strike and maturity."""
+        ...
 
 
 @runtime_checkable
@@ -26,7 +28,9 @@ class ImpliedVolInverter(Protocol):
         *,
         dividend_yield: float = 0.0,
         **kwargs: Any,
-    ) -> float: ...
+    ) -> float:
+        """Invert a model price to Black-Scholes implied volatility."""
+        ...
 
 
 @runtime_checkable
@@ -66,9 +70,10 @@ class VolModel(Protocol):
 class RangesConfig(Protocol):
     """Config section describing parameter box ranges used by LHS sampling."""
 
-    def __getitem__(self, key: str) -> Any: ...
+    def __getitem__(self, key: str) -> Any:
+        """Return a config value for the provided parameter name."""
+        ...
 
 
-# Small alias used by type hints below.
 ArrayLike = np.ndarray
 ConfigMapping = Mapping[str, Any]

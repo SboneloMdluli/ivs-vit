@@ -1,4 +1,4 @@
-"""Heston :class:`VolModel`"""
+"""Heston :class:`VolModel`."""
 
 import math
 from dataclasses import dataclass
@@ -60,6 +60,7 @@ class HestonCosSettings:
 
     @classmethod
     def from_config(cls, cfg: Mapping[str, Any]) -> "HestonCosSettings":
+        """Build COS settings from config mapping defaults."""
         section = cfg.get("heston_cos_pricer") or cfg.get("cos") or {}
         return cls(
             n_terms_base=int(section.get("n_terms", 1024)),
@@ -82,6 +83,7 @@ class ImpliedVolSettings:
 
     @classmethod
     def from_config(cls, cfg: Mapping[str, Any]) -> "ImpliedVolSettings":
+        """Build implied-vol inversion settings from config mapping."""
         section = cfg.get("implied_vol", {}) or {}
         return cls(
             sigma_lo=float(section.get("sigma_lo", 1e-4)),
@@ -108,11 +110,13 @@ class HestonModel:
         cos: HestonCosSettings | None = None,
         iv: ImpliedVolSettings | None = None,
     ) -> None:
+        """Create Heston model with optional COS and IV settings."""
         self.cos = cos or HestonCosSettings()
         self.iv = iv or ImpliedVolSettings()
 
     @classmethod
     def from_config(cls, cfg: Mapping[str, Any]) -> "HestonModel":
+        """Create a configured Heston model from config sections."""
         return cls(cos=HestonCosSettings.from_config(cfg), iv=ImpliedVolSettings.from_config(cfg))
 
     @staticmethod

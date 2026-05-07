@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from implied_volatility_diffusion.diffusion.latent_grid import symmetric_pad_widths
+from implied_volatility_diffusion.diffusion.autoencoders.latent_grid import symmetric_pad_widths
 
 
 def pad_tensor(
@@ -15,6 +15,7 @@ def pad_tensor(
     multiple_h: int,
     multiple_w: int,
 ) -> tuple[torch.Tensor, tuple[int, int, int, int]]:
+    """Pad tensor symmetrically so height/width are divisible by given multiples."""
     h, w = x.shape[-2:]
     pads = symmetric_pad_widths(h, w, multiple_h=multiple_h, multiple_w=multiple_w)
     pad_top, pad_bottom, pad_left, pad_right = pads
@@ -29,11 +30,13 @@ def crop_tensor(
     target_h: int,
     target_w: int,
 ) -> torch.Tensor:
+    """Crop a padded tensor back to target spatial dimensions."""
     pad_top, _pad_bottom, pad_left, _pad_right = pads
     return x[..., pad_top : pad_top + target_h, pad_left : pad_left + target_w]
 
 
 def groupnorm(ch: int) -> nn.GroupNorm:
+    """Create GroupNorm with a channel-divisible group count up to 8."""
     g = min(8, ch)
     while g > 1 and ch % g != 0:
         g -= 1
@@ -44,6 +47,7 @@ class DownBlock(nn.Module):
     """Norm → conv → stride-2 conv (halve spatial size)."""
 
     def __init__(self, ch: int) -> None:
+        """Initialize a downsampling residual-style convolution block."""
         super().__init__()
         self.net = nn.Sequential(
             groupnorm(ch),
@@ -54,6 +58,7 @@ class DownBlock(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply downsampling block to input tensor."""
         return self.net(x)
 
 
@@ -61,6 +66,7 @@ class UpBlock(nn.Module):
     """×2 nearest upsample → two convs."""
 
     def __init__(self, ch: int) -> None:
+        """Initialize an upsampling convolution block."""
         super().__init__()
         self.net = nn.Sequential(
             groupnorm(ch),
@@ -71,6 +77,7 @@ class UpBlock(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Upsample input by factor 2 and apply convolutions."""
         x = F.interpolate(x, scale_factor=2.0, mode="nearest")
         return self.net(x)
 

@@ -62,7 +62,6 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-# Import order is enforced by isort (pre-commit); Ruff I rules omitted to avoid conflicts.
 select = ["E", "F", "W", "D"]
 
 [tool.ruff.lint.pydocstyle]

@@ -1,4 +1,5 @@
-"""API works in **unnormalized IV surfaces**:
+"""API works in **unnormalized IV surfaces**.
+
 and ``ReverseDiffusion`` returns sampled IV surfaces.
 """
 
@@ -24,8 +25,9 @@ def _broadcast(value: torch.Tensor, ref: torch.Tensor) -> torch.Tensor:
 
 
 class DiffusionModel(nn.Module):
-    """The model takes / returns **unnormalized IV surfaces**.
-    Denoising happens in z-space (``z = (log(iv) - mean) / std``),
+    """The model takes and returns **unnormalized IV surfaces**.
+
+    Denoising happens in z-space (``z = (log(iv) - mean) / std``).
 
     Args:
         backbone: Any :class:`DenoisingBackbone` (e.g. :class: UNet/ ViT).
@@ -47,6 +49,7 @@ class DiffusionModel(nn.Module):
         iv_floor: float = _DEFAULT_IV_FLOOR,
         prediction_type: str | None = None,
     ) -> None:
+        """Construct diffusion model from backbone, scheduler, and normalization stats."""
         super().__init__()
         mean_t = torch.as_tensor(np.asarray(mean), dtype=torch.float32)
         std_t = torch.as_tensor(np.asarray(std), dtype=torch.float32)
@@ -66,7 +69,7 @@ class DiffusionModel(nn.Module):
         normalizer: "SurfaceNormalizer",
         **kwargs: Any,
     ) -> "DiffusionModel":
-        """Build from a fitted :class:`SurfaceNormalizer`"""
+        """Build from a fitted :class:`SurfaceNormalizer`."""
         return cls(
             backbone,
             scheduler,
@@ -122,14 +125,17 @@ class DiffusionModel(nn.Module):
 
     @property
     def grid_shape(self) -> tuple[int, int]:
+        """Return the 2D grid shape used by normalization buffers."""
         return int(self.mean.shape[0]), int(self.mean.shape[1])
 
     @property
     def in_channels(self) -> int:
+        """Return expected input channels from the configured backbone."""
         return int(getattr(self.backbone, "in_channels", 1))
 
     @property
     def out_channels(self) -> int:
+        """Return output channels produced by the configured backbone."""
         return int(getattr(self.backbone, "out_channels", 1))
 
     def _check_grid(self, x: torch.Tensor) -> None:
@@ -143,7 +149,7 @@ class DiffusionModel(nn.Module):
         return (log_iv - self.mean) / self.std
 
     def denormalize(self, z: torch.Tensor, *, return_log_iv: bool = False) -> torch.Tensor:
-        """Z to unnormalized IVS"""
+        """Map z-space tensor back to unnormalized IV values."""
         self._check_grid(z)
         log_iv = z * self.std + self.mean
         return log_iv if return_log_iv else torch.exp(log_iv)

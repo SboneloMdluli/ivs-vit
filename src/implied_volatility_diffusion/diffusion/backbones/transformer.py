@@ -1,4 +1,4 @@
-""" """
+"""Transformer backbone for diffusion denoising on IV grids."""
 
 from typing import Any, Mapping
 

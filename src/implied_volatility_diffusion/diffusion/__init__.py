@@ -5,6 +5,23 @@ from implied_volatility_diffusion.diffusion.arbitrage_torch import (
     ArbitrageWeights,
     torch_bs_call,
 )
+from implied_volatility_diffusion.diffusion.autoencoders.kl_autoencoder import (
+    DownBlock,
+    KLAutoencoder,
+    KLAutoencoderOutput,
+    UpBlock,
+    crop_tensor,
+    groupnorm,
+    pad_tensor,
+)
+from implied_volatility_diffusion.diffusion.autoencoders.latent_grid import (
+    crop_surface,
+    halving_spatial_factor,
+    latent_padded_hw,
+    latent_spatial_hw,
+    pad_surface,
+    symmetric_pad_widths,
+)
 from implied_volatility_diffusion.diffusion.backbones import (
     DenoisingBackbone,
     GridTransformer,
@@ -14,25 +31,6 @@ from implied_volatility_diffusion.diffusion.backbones import (
     build_backbone,
     iter_backbone_names,
     register_backbone,
-)
-from implied_volatility_diffusion.diffusion.kl_autoencoder import (
-    KLAutoencoder,
-    KLAutoencoderOutput,
-)
-from implied_volatility_diffusion.diffusion.kl_autoencoder import (
-    DownBlock,
-    UpBlock,
-    crop_tensor,
-    groupnorm,
-    pad_tensor,
-)
-from implied_volatility_diffusion.diffusion.latent_grid import (
-    crop_surface,
-    halving_spatial_factor,
-    latent_padded_hw,
-    latent_spatial_hw,
-    pad_surface,
-    symmetric_pad_widths,
 )
 from implied_volatility_diffusion.diffusion.losses import (
     ArbitrageSchedule,

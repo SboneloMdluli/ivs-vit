@@ -39,6 +39,7 @@ class ResnetBlock(nn.Module):
         time_dim: int,
         dropout: float = 0.0,
     ) -> None:
+        """Initialize a residual block with FiLM-style time conditioning."""
         super().__init__()
         self.norm1 = _groupnorm(in_channels)
         self.act1 = nn.SiLU()
@@ -57,6 +58,7 @@ class ResnetBlock(nn.Module):
             self.skip = nn.Identity()
 
     def forward(self, x: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
+        """Apply residual processing conditioned on timestep embeddings."""
         h = self.conv1(self.act1(self.norm1(x)))
         h = h + self.time_mlp(t_emb).unsqueeze(-1).unsqueeze(-1)
         h = self.conv2(self.dropout(self.act2(self.norm2(h))))
@@ -68,6 +70,7 @@ class SelfAttention2d(nn.Module):
     """Multi-head self-attention over flattened spatial tokens."""
 
     def __init__(self, channels: int, num_heads: int = 4) -> None:
+        """Initialize 2D self-attention with the provided head count."""
         super().__init__()
         if channels % num_heads != 0:
             raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads})")
@@ -77,6 +80,7 @@ class SelfAttention2d(nn.Module):
         self.num_heads = int(num_heads)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply self-attention over flattened spatial tokens."""
         b, c, h, w = x.shape
         qkv = self.qkv(self.norm(x))
         q, k, v = qkv.chunk(3, dim=1)
@@ -146,6 +150,7 @@ class UNet(DenoisingBackbone):
         attention_heads: int = 4,
         dropout: float = 0.0,
     ) -> None:
+        """Build a configurable time-conditioned U-Net denoiser."""
         super().__init__()
         if not channel_mults:
             raise ValueError("channel_mults must be non-empty")
