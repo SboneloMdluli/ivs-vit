@@ -11,6 +11,7 @@ from implied_volatility_diffusion.diffusion.model import DiffusionModel
 from implied_volatility_diffusion.diffusion.noise_scheduler import VPNoiseScheduler
 
 ArbitrageSchedule = Literal["alpha_bar", "sqrt_alpha_bar", "linear", "snr", "constant"]
+TimestepSampling = Literal["uniform", "lognormal"]
 
 
 def _arbitrage_weights(scheduler: VPNoiseScheduler, t: torch.Tensor, schedule: ArbitrageSchedule) -> torch.Tensor:
@@ -57,12 +58,20 @@ class DiffusionLossConfig:
     arbitrage_schedule: ArbitrageSchedule = "alpha_bar"
 
     predicted_z0_clip: tuple[float, float] | None = (-4.0, 4.0)
-    # SNR loss weighting (Hang et al., arXiv:2303.09556): w = SNR for x0, uniform for epsilon
-    snr_weighting: bool = True
+    # Legacy x0-only SNR weights when ``eps_loss_schedule == "uniform"``.
+    snr_weighting: bool = False
 
     smoothness_lambda: float = 1e-4
     # Same schedule vocabulary as arbitrage; uses `_arbitrage_weights`.
     smoothness_schedule: ArbitrageSchedule = "alpha_bar"
+
+    # shifted toward low noise (small t).
+    timestep_sampling: TimestepSampling = "lognormal"
+    lognormal_mu: float = -3.5
+    lognormal_sigma: float = 0.65
+    lognormal_max_noise_frac: float | None = 0.15
+
+    eps_loss_schedule: ArbitrageSchedule = "alpha_bar"
 
 
 class DiffusionLoss(nn.Module):
@@ -80,12 +89,41 @@ class DiffusionLoss(nn.Module):
         self.config = config or DiffusionLossConfig()
 
     def sample_timesteps(
-        self, batch_size: int, scheduler: VPNoiseScheduler, *, device: torch.device | None = None
+        self,
+        batch_size: int,
+        scheduler: VPNoiseScheduler,
+        *,
+        device: torch.device | None = None,
+        generator: torch.Generator | None = None,
     ) -> torch.Tensor:
-        """Sample integer ``t ~ U{0, …, timesteps-1}`` per batch row."""
+        """Sample integer timesteps per batch row.
+
+        ``uniform``: ``t ~ U{0, …, T-1}``.
+        ``lognormal`` (default): lognormal on ``(1 - alpha_bar_t)``; negative ``lognormal_mu``
+        and ``lognormal_max_noise_frac`` bias draws toward low noise / ``x_0``.
+        """
         if device is None:
             device = scheduler.alpha_bar.device
-        return torch.randint(0, scheduler.timesteps, (batch_size,), device=device, dtype=torch.long)
+        if self.config.timestep_sampling == "uniform":
+            return torch.randint(
+                0,
+                scheduler.timesteps,
+                (batch_size,),
+                device=device,
+                dtype=torch.long,
+                generator=generator,
+            )
+        if self.config.timestep_sampling == "lognormal":
+            return _sample_timesteps_lognormal(
+                batch_size,
+                scheduler,
+                device=device,
+                mu=self.config.lognormal_mu,
+                sigma=self.config.lognormal_sigma,
+                max_noise_frac=self.config.lognormal_max_noise_frac,
+                generator=generator,
+            )
+        raise ValueError(f"unknown timestep_sampling: {self.config.timestep_sampling}")
 
     def forward(
         self,
@@ -113,16 +151,8 @@ class DiffusionLoss(nn.Module):
         pred = model.predict_noise(z_t, t, cond)
         target = eps if model.prediction_type == "epsilon" else z0
         per_sample_mse = ((pred - target) ** 2).flatten(1).mean(dim=1)
-        if self.config.snr_weighting:
-            alpha_bar = scheduler.alpha_bar_at(t)
-            snr = alpha_bar / torch.clamp(1.0 - alpha_bar, min=1e-8)
-            if model.prediction_type == "epsilon":
-                w_loss = torch.ones_like(snr)
-            else:
-                w_loss = snr
-            loss_eps = (w_loss * per_sample_mse).mean()
-        else:
-            loss_eps = per_sample_mse.mean()
+        w_loss = self._eps_loss_weights(scheduler, t, model.prediction_type)
+        loss_eps = (w_loss * per_sample_mse).mean()
 
         out: dict[str, torch.Tensor] = {"loss_eps": loss_eps}
         loss_total = loss_eps
@@ -161,6 +191,23 @@ class DiffusionLoss(nn.Module):
         out["loss"] = loss_total
         return out
 
+    def _eps_loss_weights(
+        self,
+        scheduler: VPNoiseScheduler,
+        t: torch.Tensor,
+        prediction_type: str,
+    ) -> torch.Tensor:
+        """Per-sample MSE weights; ``alpha_bar`` emphasizes low-noise (near ``x_0``) steps."""
+        if self.config.eps_loss_schedule != "uniform":
+            return _arbitrage_weights(scheduler, t, self.config.eps_loss_schedule)
+        if not self.config.snr_weighting:
+            return torch.ones(t.shape[0], device=t.device, dtype=scheduler.alpha_bar.dtype)
+        alpha_bar = scheduler.alpha_bar_at(t)
+        snr = alpha_bar / torch.clamp(1.0 - alpha_bar, min=1e-8)
+        if prediction_type == "epsilon":
+            return torch.ones_like(snr)
+        return snr
+
     @staticmethod
     def _recover_x0_z(
         model: DiffusionModel,
@@ -177,8 +224,34 @@ class DiffusionLoss(nn.Module):
         return (z_t - sqrt_one_minus_ab * pred) / sqrt_ab
 
 
+def _sample_timesteps_lognormal(
+    batch_size: int,
+    scheduler: VPNoiseScheduler,
+    *,
+    device: torch.device,
+    mu: float,
+    sigma: float,
+    max_noise_frac: float | None = None,
+    generator: torch.Generator | None = None,
+) -> torch.Tensor:
+    """Map lognormal draws on ``(1 - alpha_bar)`` to discrete VP timesteps."""
+    z = torch.randn(batch_size, device=device, generator=generator)
+    noise_var = torch.exp(z * sigma + mu)
+    one_minus_ab = 1.0 - scheduler.alpha_bar.to(device=device)
+    lo = one_minus_ab[0]
+    hi = one_minus_ab[-1]
+    if max_noise_frac is not None:
+        if not 0.0 < max_noise_frac <= 1.0:
+            raise ValueError("lognormal_max_noise_frac must be in (0, 1]")
+        hi = lo + float(max_noise_frac) * (hi - lo)
+    noise_var = noise_var.clamp(min=lo, max=hi)
+    t = torch.searchsorted(one_minus_ab, noise_var, right=False)
+    return t.clamp(max=scheduler.timesteps - 1).to(dtype=torch.long)
+
+
 __all__ = [
     "ArbitrageSchedule",
     "DiffusionLoss",
     "DiffusionLossConfig",
+    "TimestepSampling",
 ]

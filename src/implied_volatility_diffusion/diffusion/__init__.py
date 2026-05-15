@@ -36,6 +36,7 @@ from implied_volatility_diffusion.diffusion.losses import (
     ArbitrageSchedule,
     DiffusionLoss,
     DiffusionLossConfig,
+    TimestepSampling,
 )
 from implied_volatility_diffusion.diffusion.model import DiffusionModel
 from implied_volatility_diffusion.diffusion.noise_scheduler import VPNoiseScheduler
@@ -56,6 +57,7 @@ __all__ = [
     "DiffusionLoss",
     "DiffusionLossConfig",
     "DiffusionModel",
+    "TimestepSampling",
     "DownBlock",
     "KLAutoencoder",
     "KLAutoencoderOutput",
