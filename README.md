@@ -34,7 +34,7 @@ uv run pre-commit run --all-files
 
 - `src/implied_volatility_diffusion/`: package code (models, pricing, synthetic surfaces, data utilities).
 - `config/`: YAML configs for synthetic surface generation and shared grids.
-- `notebooks/`: exploratory and reproducible research notebooks.
+- `notebooks/`: exploratory and reproducible research notebooks (`data/`, `synthetic/`, `training/`, `validation/`, `diagnostics/`).
 - `data/`: raw and processed datasets.
 - `docs/`: focused technical documentation.
 

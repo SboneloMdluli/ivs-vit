@@ -45,4 +45,4 @@ Preprocessed datasets (raw + cleaned) are available here:
 ## Notes
 
 - Exact filters and feature variants can differ by notebook/experiment.
-- See notebooks in `notebooks/` for exploratory validation and interpolation steps.
+- See `notebooks/data/` for exploratory validation, interpolation, and the unified forecasting dataset pipeline.
