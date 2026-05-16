@@ -67,8 +67,7 @@ class DiffusionLossConfig:
     # Same schedule vocabulary as arbitrage; uses `_arbitrage_weights`.
     smoothness_schedule: ArbitrageSchedule = "alpha_bar"
 
-    # shifted toward low noise (small t).
-    timestep_sampling: TimestepSampling = "lognormal"
+    timestep_sampling: TimestepSampling = "uniform"
     lognormal_mu: float = -3.5
     lognormal_sigma: float = 0.65
     lognormal_max_noise_frac: float | None = 0.15
@@ -100,8 +99,8 @@ class DiffusionLoss(nn.Module):
     ) -> torch.Tensor:
         """Sample integer timesteps per batch row.
 
-        ``uniform``: ``t ~ U{0, …, T-1}``.
-        ``lognormal`` (default): lognormal on ``(1 - alpha_bar_t)``; negative ``lognormal_mu``
+        ``uniform`` (default): ``t ~ U{0, …, T-1}``.
+        ``lognormal``: lognormal on ``(1 - alpha_bar_t)``; negative ``lognormal_mu``
         and ``lognormal_max_noise_frac`` bias draws toward low noise / ``x_0``.
         """
         if device is None:

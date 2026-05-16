@@ -10,19 +10,19 @@ from implied_volatility_diffusion.diffusion.losses import (
 from implied_volatility_diffusion.diffusion.noise_scheduler import VPNoiseScheduler
 
 
-def test_default_config_uses_lognormal_low_noise_preset() -> None:
+def test_default_config_uses_uniform_timestep_sampling() -> None:
     sched = VPNoiseScheduler(timesteps=400, beta_schedule="cosine")
     cfg = DiffusionLossConfig()
-    assert cfg.timestep_sampling == "lognormal"
+    assert cfg.timestep_sampling == "uniform"
     assert cfg.lognormal_mu == -3.5
     assert cfg.lognormal_max_noise_frac == 0.15
     assert cfg.eps_loss_schedule == "alpha_bar"
     loss = DiffusionLoss(config=cfg)
-    uniform = DiffusionLoss(config=DiffusionLossConfig(timestep_sampling="uniform"))
+    lognormal = DiffusionLoss(config=DiffusionLossConfig(timestep_sampling="lognormal"))
     n = 2048
     t_def = loss.sample_timesteps(n, sched, device=torch.device("cpu")).float().mean()
-    t_uni = uniform.sample_timesteps(n, sched, device=torch.device("cpu")).float().mean()
-    assert t_def < t_uni
+    t_ln = lognormal.sample_timesteps(n, sched, device=torch.device("cpu")).float().mean()
+    assert t_ln < t_def
 
 
 def test_sample_timesteps_uniform_in_range() -> None:
@@ -96,11 +96,9 @@ def test_alpha_bar_sq_emphasizes_low_noise_more_than_alpha_bar() -> None:
     loss_ab = DiffusionLoss(config=DiffusionLossConfig(eps_loss_schedule="alpha_bar"))
     loss_sq = DiffusionLoss(config=DiffusionLossConfig(eps_loss_schedule="alpha_bar_sq"))
     ratio_ab = (
-        loss_ab._eps_loss_weights(sched, t_low, "epsilon")[0]
-        / loss_ab._eps_loss_weights(sched, t_high, "epsilon")[0]
+        loss_ab._eps_loss_weights(sched, t_low, "epsilon")[0] / loss_ab._eps_loss_weights(sched, t_high, "epsilon")[0]
     )
     ratio_sq = (
-        loss_sq._eps_loss_weights(sched, t_low, "epsilon")[0]
-        / loss_sq._eps_loss_weights(sched, t_high, "epsilon")[0]
+        loss_sq._eps_loss_weights(sched, t_low, "epsilon")[0] / loss_sq._eps_loss_weights(sched, t_high, "epsilon")[0]
     )
     assert ratio_sq > ratio_ab
