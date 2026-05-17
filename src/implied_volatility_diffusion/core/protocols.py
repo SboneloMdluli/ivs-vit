@@ -1,6 +1,6 @@
 """Protocols that decouple pricing models from surface assembly."""
 
-from typing import Any, Mapping, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -67,13 +67,3 @@ class VolModel(Protocol):
         ...
 
 
-class RangesConfig(Protocol):
-    """Config section describing parameter box ranges used by LHS sampling."""
-
-    def __getitem__(self, key: str) -> Any:
-        """Return a config value for the provided parameter name."""
-        ...
-
-
-ArrayLike = np.ndarray
-ConfigMapping = Mapping[str, Any]

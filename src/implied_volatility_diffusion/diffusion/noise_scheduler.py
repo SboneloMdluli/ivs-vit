@@ -61,12 +61,7 @@ class VPNoiseScheduler(nn.Module):
 
     def alpha_sigma(self, t: float | torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Return closed-form VP ``(alpha_t, sigma_t)`` for time ``t >= 0``."""
-        if self.beta is None:
-            raise ValueError("alpha_sigma requires constant beta; pass beta=... to VPNoiseScheduler")
         t_tensor = torch.as_tensor(t, dtype=torch.float32)
-        if torch.any(t_tensor < 0):
-            raise ValueError("t must be non-negative")
-
         alpha = torch.exp(-0.5 * self.beta * t_tensor)
         sigma = torch.sqrt(torch.clamp(1.0 - torch.exp(-self.beta * t_tensor), min=0.0))
         return alpha, sigma

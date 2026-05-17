@@ -12,6 +12,11 @@ from implied_volatility_diffusion.arbitrage import (
     check_iv_surfaces_arbitrage,
 )
 from implied_volatility_diffusion.core.protocols import VolModel
+from implied_volatility_diffusion.core.surface_repair import (
+    SurfaceRepairSettings,
+    repair_calendar_monotone,
+    repair_iv_surfaces,
+)
 from implied_volatility_diffusion.core.types import SurfaceBatch
 from implied_volatility_diffusion.synthetic.surface import build_surfaces
 
@@ -30,6 +35,11 @@ class GuardSettings:
     policy: GuardPolicy = "repair"
     tol: float = 1e-8
     repair_before_filter: bool = True
+    smooth_sigma_log_moneyness: float = 0.6
+    smooth_sigma_tau: float = 0.4
+    max_repair_iterations: int = 6
+    repair_blend: float = 1.0
+    butterfly_strength: float = 1.0
 
     @classmethod
     def from_config(cls, cfg: Mapping[str, Any]) -> "GuardSettings":
@@ -42,27 +52,25 @@ class GuardSettings:
             policy=policy_raw,  # type: ignore[arg-type]
             tol=float(section.get("tol", 1e-8)),
             repair_before_filter=bool(section.get("repair_before_filter", True)),
+            smooth_sigma_log_moneyness=float(section.get("smooth_sigma_log_moneyness", 0.6)),
+            smooth_sigma_tau=float(section.get("smooth_sigma_tau", 0.4)),
+            max_repair_iterations=int(section.get("max_repair_iterations", 6)),
+            repair_blend=float(section.get("repair_blend", 1.0)),
+            butterfly_strength=float(section.get("butterfly_strength", 1.0)),
         )
 
 
-def repair_calendar_monotone(iv: np.ndarray, tau: np.ndarray) -> np.ndarray:
-    """Enforce calendar monotonicity in total variance along ``tau``."""
-    iv_arr = np.asarray(iv, dtype=float)
-    t = np.asarray(tau, dtype=float).reshape(-1)
-    if iv_arr.shape[-1] != t.size:
-        raise ValueError(f"iv last axis ({iv_arr.shape[-1]}) must match len(tau)={t.size}")
-    if t.size < 2:
-        return iv_arr.copy()
-
-    w = (iv_arr**2) * t
-    valid = np.isfinite(w) & (iv_arr > 0.0)
-    w_fill = np.where(valid, w, -np.inf)
-    w_mono = np.maximum.accumulate(w_fill, axis=-1)
-    w_mono = np.where(np.isfinite(w_mono), w_mono, w)
-
-    with np.errstate(invalid="ignore", divide="ignore"):
-        iv_new = np.sqrt(np.maximum(w_mono, 0.0) / t)
-    return np.where(valid, iv_new, iv_arr)
+def _repair_settings(settings: GuardSettings) -> SurfaceRepairSettings:
+    return SurfaceRepairSettings(
+        tol=float(settings.tol),
+        max_iterations=int(settings.max_repair_iterations),
+        smooth_sigma_log_moneyness=float(settings.smooth_sigma_log_moneyness),
+        smooth_sigma_tau=float(settings.smooth_sigma_tau),
+        blend=float(settings.repair_blend),
+        butterfly_strength=float(settings.butterfly_strength),
+        repair_wings=True,
+        only_if_violated=False,
+    )
 
 
 def _summarise(reports: Iterable[ArbitrageReport]) -> tuple[int, int, int, int]:
@@ -109,7 +117,15 @@ def enforce_arbitrage(
         raise ValueError(f"enforce_arbitrage expects iv with shape (..., M, T); got {iv.shape}")
 
     if settings.policy in ("repair", "filter") and settings.repair_before_filter:
-        iv_rep = repair_calendar_monotone(iv, batch.tau)
+        iv_rep = repair_iv_surfaces(
+            iv,
+            batch.moneyness,
+            batch.tau,
+            spot=float(spot),
+            rate=float(rate),
+            dividend_yield=float(dividend_yield),
+            settings=_repair_settings(settings),
+        )
         batch = replace(batch, iv=iv_rep)
 
     reports = check_iv_surfaces_arbitrage(
@@ -230,5 +246,5 @@ __all__ = [
     "assert_arbitrage_free",
     "enforce_arbitrage",
     "guarded_build_surfaces",
-    "repair_calendar_monotone",
+    "repair_calendar_monotone",  # re-exported from core.surface_repair
 ]

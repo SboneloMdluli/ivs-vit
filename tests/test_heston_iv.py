@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import implied_volatility_diffusion.config
-import implied_volatility_diffusion.iv_surface
+import implied_volatility_diffusion.core.grid
 import implied_volatility_diffusion.models.heston.cos
 import implied_volatility_diffusion.pricing.black_scholes
 import implied_volatility_diffusion.pricing.implied_vol
@@ -40,7 +40,7 @@ def test_heston_degenerates_to_bs() -> None:
 def test_grid_tau_endpoints() -> None:
     root = Path(__file__).resolve().parents[1]
     cfg = implied_volatility_diffusion.synthetic.heston.load_heston_iv_surface_config(root / "config")
-    m, tau = implied_volatility_diffusion.iv_surface.grid_axes(cfg)
+    m, tau = implied_volatility_diffusion.core.grid.grid_axes(cfg)
     grid_cfg = cfg["grid"]
     assert abs(float(tau[0]) - float(grid_cfg["tau"]["start_point"])) < 1e-9
     assert abs(float(tau[-1]) - float(grid_cfg["tau"]["end_point"])) < 1e-9

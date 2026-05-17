@@ -39,10 +39,8 @@ from implied_volatility_diffusion.diffusion import (
     register_backbone,
 )
 from implied_volatility_diffusion.diffusion.noise_scheduler import VPNoiseScheduler
-from implied_volatility_diffusion.iv_surface import (
-    grid_axes,
-    implied_vol_surface_on_grid,
-    implied_vol_surfaces_from_param_matrix,
+from implied_volatility_diffusion.core.grid import grid_axes
+from implied_volatility_diffusion.core.lhs import (
     lhs_params_from_config,
     lhs_params_multi_batch_from_config,
 )
@@ -56,6 +54,12 @@ from implied_volatility_diffusion.synthetic.goals import (
     HESTON_GOAL_YAML,
     HestonIvGoal,
     coerce_heston_iv_goal,
+)
+from implied_volatility_diffusion.core.surface_repair import (
+    SurfaceRepairSettings,
+    repair_iv_surface,
+    repair_iv_surfaces,
+    volgan_generative_repair_settings,
 )
 from implied_volatility_diffusion.synthetic.guards import (
     ArbitrageError,
@@ -81,6 +85,24 @@ from implied_volatility_diffusion.synthetic.heston import (
     lhs_heston_params_multi_batch,
     load_heston_iv_surface_config,
     load_heston_iv_surface_goal_config,
+)
+from implied_volatility_diffusion.scenarios import (
+    CallableJointScenarioGenerator,
+    FilteredHistoricalSettings,
+    FilteredHistoricalSimulation,
+    JointHistoricalState,
+    JointScenarioBatch,
+    JointScenarioGenerator,
+    PenaltyWeightingResult,
+    SurfaceArbitragePenalty,
+    SurfaceArbitrageWeights,
+    generate_weighted_joint_scenarios,
+    penalize_and_weight_iv_surfaces,
+    penalize_and_weight_iv_surfaces_torch,
+    penalize_iv_surfaces,
+    volgan_exponential_weights,
+    volgan_exponential_weights_torch,
+    weight_scenarios_from_penalties,
 )
 from implied_volatility_diffusion.synthetic.sabr import (
     implied_vol_surface_for_sabr_params,
@@ -137,8 +159,6 @@ __all__ = [
     "register_backbone",
     "implied_vol_surface_for_params",
     "implied_vol_surface_for_sabr_params",
-    "implied_vol_surface_on_grid",
-    "implied_vol_surfaces_from_param_matrix",
     "implied_vol_surfaces_lhs",
     "implied_vol_surfaces_sabr_lhs",
     "implied_vol_surfaces_sabr_sequential_lhs",
@@ -157,4 +177,24 @@ __all__ = [
     "merge_config_files",
     "milstein_step",
     "repair_calendar_monotone",
+    "repair_iv_surface",
+    "repair_iv_surfaces",
+    "SurfaceRepairSettings",
+    "volgan_generative_repair_settings",
+    "CallableJointScenarioGenerator",
+    "FilteredHistoricalSettings",
+    "FilteredHistoricalSimulation",
+    "JointHistoricalState",
+    "JointScenarioBatch",
+    "JointScenarioGenerator",
+    "PenaltyWeightingResult",
+    "SurfaceArbitragePenalty",
+    "SurfaceArbitrageWeights",
+    "generate_weighted_joint_scenarios",
+    "penalize_and_weight_iv_surfaces",
+    "penalize_and_weight_iv_surfaces_torch",
+    "penalize_iv_surfaces",
+    "volgan_exponential_weights",
+    "volgan_exponential_weights_torch",
+    "weight_scenarios_from_penalties",
 ]

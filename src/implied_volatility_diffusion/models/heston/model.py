@@ -6,47 +6,12 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from implied_volatility_diffusion.core.surface_repair import repair_wing_monotonicity
 from implied_volatility_diffusion.models.base import register_model
 from implied_volatility_diffusion.models.heston.cos import heston_call_cos
 from implied_volatility_diffusion.pricing.implied_vol import implied_vol_from_prices
 
 HESTON_PARAM_ORDER: tuple[str, ...] = ("v0", "rho", "sigma", "theta", "kappa", "r")
-
-
-def _repair_wing_monotonicity(
-    iv_slice: np.ndarray,
-    *,
-    sigma_lo: float = 1e-4,
-    sigma_hi: float = 10.0,
-) -> np.ndarray:
-    """Enforce non-decreasing IV away from the smile minimum per tau column."""
-    out = iv_slice.copy()
-    n_m, n_t = out.shape
-
-    lo_fence = sigma_lo * 2.0
-    hi_fence = sigma_hi * 0.9
-
-    for j in range(n_t):
-        col = out[:, j]
-        reliable = np.isfinite(col) & (col > lo_fence) & (col < hi_fence)
-
-        if reliable.sum() < 2:
-            finite = np.isfinite(col) & (col > 0)
-            if finite.sum() < 2:
-                continue
-            reliable = finite
-
-        vals = np.where(reliable, col, np.inf)
-        min_idx = int(np.argmin(vals))
-
-        for i in range(min_idx - 1, -1, -1):
-            if not reliable[i] or col[i] < col[i + 1]:
-                col[i] = col[i + 1]
-        for i in range(min_idx + 1, n_m):
-            if not reliable[i] or col[i] < col[i - 1]:
-                col[i] = col[i - 1]
-
-    return out
 
 
 @dataclass(frozen=True)
@@ -251,7 +216,7 @@ class HestonModel:
         # Wing monotonicity repair
         if self.iv.repair_wings:
             for bi in range(int(iv_surfaces.shape[0])):
-                iv_surfaces[bi] = _repair_wing_monotonicity(
+                iv_surfaces[bi] = repair_wing_monotonicity(
                     iv_surfaces[bi],
                     sigma_lo=self.iv.sigma_lo,
                     sigma_hi=self.iv.sigma_hi,

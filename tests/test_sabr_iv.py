@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import yaml
 
-from implied_volatility_diffusion.iv_surface import grid_axes
+from implied_volatility_diffusion.core.grid import grid_axes
 from implied_volatility_diffusion.models.sabr.calibration import (
     calibrate_params_for_expiries,
     calibrate_sabr_to_implied_vols,
